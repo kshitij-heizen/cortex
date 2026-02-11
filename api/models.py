@@ -17,46 +17,21 @@ class DeploymentStatus(str, Enum):
     DESTROYED = "destroyed"
 
 
-class EksMode(str, Enum):
-    """EKS compute mode."""
-
-    AUTO = "auto" 
-    MANAGED = "managed"  
-
-
 class NatGatewayStrategy(str, Enum):
     """NAT Gateway deployment strategy."""
 
-    NONE = "none"  
-    SINGLE = "single"  
-    ONE_PER_AZ = "one_per_az"  
+    NONE = "none"
+    SINGLE = "single"
+    ONE_PER_AZ = "one_per_az"
 
 
 class EndpointAccess(str, Enum):
     """EKS cluster endpoint access configuration."""
 
-    PRIVATE = "private"  
-    PUBLIC = "public"  
-    PUBLIC_AND_PRIVATE = "public_and_private"  
+    PRIVATE = "private"
+    PUBLIC = "public"
+    PUBLIC_AND_PRIVATE = "public_and_private"
 
-
-class CapacityType(str, Enum):
-    """EC2 capacity type for node groups."""
-
-    ON_DEMAND = "ON_DEMAND"
-    SPOT = "SPOT"
-
-
-class AmiType(str, Enum):
-    """AMI type for EKS nodes."""
-
-    AL2_X86_64 = "AL2_x86_64"
-    AL2_X86_64_GPU = "AL2_x86_64_GPU"
-    AL2_ARM_64 = "AL2_ARM_64"
-    AL2023_X86_64_STANDARD = "AL2023_x86_64_STANDARD"
-    AL2023_ARM_64_STANDARD = "AL2023_ARM_64_STANDARD"
-    BOTTLEROCKET_X86_64 = "BOTTLEROCKET_x86_64"
-    BOTTLEROCKET_ARM_64 = "BOTTLEROCKET_ARM_64"
 
 
 class AwsConfigInput(BaseModel):
@@ -84,8 +59,7 @@ class AwsConfigResolved(BaseModel):
     role_arn: str
     external_id: str
     region: str
-    availability_zones: list[str]  # Always 3 AZs, computed from region
-
+    availability_zones: list[str]
 
 
 class SubnetInput(BaseModel):
@@ -111,18 +85,15 @@ class SubnetResolved(BaseModel):
 
     cidr_block: str
     availability_zone: str
-    name: str  
+    name: str
     tags: dict[str, str]
 
 
 class VpcEndpointsInput(BaseModel):
     """VPC endpoints configuration - all optional with sensible defaults."""
 
-    # Gateway endpoints (free)
     s3: bool = Field(default=True, description="Enable S3 gateway endpoint")
     dynamodb: bool = Field(default=False, description="Enable DynamoDB gateway endpoint")
-
-    # Interface endpoints (cost ~$7.50/mo each + data transfer)
     ecr_api: bool = Field(default=False, description="Enable ECR API endpoint")
     ecr_dkr: bool = Field(default=False, description="Enable ECR DKR endpoint")
     sts: bool = Field(default=False, description="Enable STS endpoint")
@@ -168,7 +139,6 @@ class VpcConfigInput(BaseModel):
         description="NAT gateway strategy - single is cost-effective default",
     )
 
-    # Optional custom subnets - if not provided, auto-calculated
     public_subnets: Optional[list[SubnetInput]] = Field(
         default=None,
         description="Custom public subnet configs (auto-calculated if not provided)",
@@ -182,13 +152,11 @@ class VpcConfigInput(BaseModel):
         description="Custom pod subnet configs (requires secondary CIDR)",
     )
 
-    # VPC endpoints
     vpc_endpoints: Optional[VpcEndpointsInput] = Field(
         default=None,
         description="VPC endpoints configuration",
     )
 
-    # DNS settings - AWS defaults
     enable_dns_hostnames: bool = Field(default=True)
     enable_dns_support: bool = Field(default=True)
 
@@ -215,7 +183,7 @@ class VpcConfigResolved(BaseModel):
 
     public_subnets: list[SubnetResolved]
     private_subnets: list[SubnetResolved]
-    pod_subnets: list[SubnetResolved]  # Empty list if not enabled
+    pod_subnets: list[SubnetResolved]
 
     vpc_endpoints: VpcEndpointsResolved
 
@@ -239,6 +207,7 @@ class AccessEntryInput(BaseModel):
         default_factory=list,
         description="Policy associations for this principal",
     )
+
 
 class SsmAccessNodeConfig(BaseModel):
     """SSM access node configuration for private cluster access."""
@@ -268,14 +237,14 @@ class SsmSessionInfo(BaseModel):
 
     instance_id: str
     region: str
-    
+
     start_session_command: str = Field(
         description="Command to start SSM session to access node"
     )
     configure_kubectl_command: str = Field(
         description="Command to run inside session to configure kubectl"
     )
-    
+
     instructions: list[str] = Field(default_factory=list)
 
 
@@ -286,15 +255,11 @@ class SsmStatusResponse(BaseModel):
     environment: str
     cluster_name: str
     access_node: SsmNodeStatus
-    vpc_endpoints: dict[str, bool] = Field(
-        description="Required VPC endpoints status"
-    )
-    ready: bool = Field(
-        description="Whether SSM access is fully configured and ready"
-    )
+    vpc_endpoints: dict[str, bool] = Field(description="Required VPC endpoints status")
+    ready: bool = Field(description="Whether SSM access is fully configured and ready")
     issues: list[str] = Field(
         default_factory=list,
-        description="Any issues preventing SSM access"
+        description="Any issues preventing SSM access",
     )
 
 
@@ -340,7 +305,6 @@ class EksAccessInput(BaseModel):
     )
 
 
-
 class EksAccessResolved(BaseModel):
     """Fully resolved EKS access configuration."""
 
@@ -350,7 +314,7 @@ class EksAccessResolved(BaseModel):
     authentication_mode: str
     bootstrap_cluster_creator_admin_permissions: bool
     access_entries: list[AccessEntryInput]
-    ssm_access_node: Optional[SsmAccessNodeConfig] = None  # NEW
+    ssm_access_node: Optional[SsmAccessNodeConfig] = None
 
 
 class AddonConfigInput(BaseModel):
@@ -393,60 +357,122 @@ class EksAddonsResolved(BaseModel):
     snapshot_controller: AddonConfigInput
 
 
+class BootstrapNodeGroupConfig(BaseModel):
+    """Small node group to run Karpenter and critical system pods.
 
-class NodeGroupScalingInput(BaseModel):
-    """Node group scaling configuration."""
+    This is always created and runs on-demand instances for reliability.
+    Karpenter itself needs nodes to run on before it can provision more.
+    """
 
-    desired_size: int = Field(default=2, ge=0, le=100)
-    min_size: int = Field(default=1, ge=0, le=100)
-    max_size: int = Field(default=5, ge=1, le=100)
+    instance_types: list[str] = Field(
+        default_factory=lambda: ["t3.medium"],
+        description="Instance types for bootstrap nodes",
+    )
+    desired_size: int = Field(default=2, ge=1, le=10)
+    min_size: int = Field(default=2, ge=1, le=10)
+    max_size: int = Field(default=3, ge=1, le=10)
+    disk_size: int = Field(default=50, ge=20, le=200)
 
-
-class NodeGroupInput(BaseModel):
-    """Node group configuration input."""
-
-    name: str = Field(default="general")
-    instance_types: list[str] = Field(default_factory=lambda: ["t3.medium"])
-    capacity_type: CapacityType = Field(default=CapacityType.ON_DEMAND)
-    ami_type: AmiType = Field(default=AmiType.AL2023_X86_64_STANDARD)
-    disk_size: int = Field(default=50, ge=20, le=1000)
-    scaling: Optional[NodeGroupScalingInput] = None
-    labels: dict[str, str] = Field(default_factory=dict)
-    taints: list[dict[str, str]] = Field(default_factory=list)
-    tags: dict[str, str] = Field(default_factory=dict)
+    labels: dict[str, str] = Field(
+        default_factory=lambda: {"node-role": "system"},
+        description="Labels for bootstrap nodes",
+    )
 
 
-class NodeGroupResolved(BaseModel):
-    """Fully resolved node group configuration."""
 
-    name: str
-    instance_types: list[str]
-    capacity_type: CapacityType
-    ami_type: AmiType
-    disk_size: int
-    desired_size: int
-    min_size: int
-    max_size: int
-    labels: dict[str, str]
-    taints: list[dict[str, str]]
-    tags: dict[str, str]
+class KarpenterNodePoolConfig(BaseModel):
+    """Configuration for Karpenter NodePool - defines what nodes can be created."""
+
+    instance_families: list[str] = Field(
+        default_factory=lambda: ["t3", "t3a", "m5", "m5a", "c5", "c5a"],
+        description="Allowed EC2 instance families",
+    )
+    instance_sizes: list[str] = Field(
+        default_factory=lambda: ["medium", "large", "xlarge", "2xlarge"],
+        description="Allowed instance sizes",
+    )
+    capacity_types: list[str] = Field(
+        default_factory=lambda: ["spot", "on-demand"],
+        description="Capacity types in order of preference (spot first = cost savings)",
+    )
+    architectures: list[str] = Field(
+        default_factory=lambda: ["amd64"],
+        description="CPU architectures (amd64, arm64)",
+    )
+    cpu_limit: int = Field(
+        default=1000,
+        ge=10,
+        le=10000,
+        description="Maximum total vCPUs Karpenter can provision",
+    )
+    memory_limit_gb: int = Field(
+        default=1000,
+        ge=10,
+        le=10000,
+        description="Maximum total memory (GB) Karpenter can provision",
+    )
+
+
+class KarpenterDisruptionConfig(BaseModel):
+    """Configuration for Karpenter node disruption/consolidation."""
+
+    consolidation_policy: str = Field(
+        default="WhenEmptyOrUnderutilized",
+        description="When to consolidate: WhenEmpty, WhenEmptyOrUnderutilized",
+    )
+    consolidate_after_seconds: int = Field(
+        default=30,
+        ge=0,
+        le=3600,
+        description="Seconds to wait before consolidating underutilized nodes",
+    )
+
+
+class KarpenterConfigInput(BaseModel):
+    """Karpenter autoscaler configuration input."""
+
+    version: str = Field(
+        default="1.0.0",
+        description="Karpenter version to install",
+    )
+    node_pool: Optional[KarpenterNodePoolConfig] = Field(
+        default=None,
+        description="NodePool configuration",
+    )
+    disruption: Optional[KarpenterDisruptionConfig] = Field(
+        default=None,
+        description="Node disruption/consolidation settings",
+    )
+
+
+class KarpenterConfigResolved(BaseModel):
+    """Fully resolved Karpenter configuration."""
+
+    version: str
+    node_pool: KarpenterNodePoolConfig
+    disruption: KarpenterDisruptionConfig
 
 
 
 class EksConfigInput(BaseModel):
-    """EKS cluster configuration input."""
+    """EKS cluster configuration input - Karpenter is always used for scaling."""
 
     version: str = Field(default="1.31", description="Kubernetes version")
-    mode: EksMode = Field(
-        default=EksMode.AUTO,
-        description="EKS mode: auto (AWS manages everything) or managed (node groups)",
-    )
     service_ipv4_cidr: str = Field(
         default="172.20.0.0/16",
         description="Kubernetes service CIDR",
     )
 
     access: Optional[EksAccessInput] = None
+
+    # Bootstrap nodes (required for Karpenter + system pods)
+    bootstrap_node_group: Optional[BootstrapNodeGroupConfig] = None
+
+    # Karpenter configuration
+    karpenter: Optional[KarpenterConfigInput] = None
+
+    # EKS managed addons (VPC-CNI, CoreDNS, etc.)
+    addons: Optional[EksAddonsInput] = None
 
     logging_enabled: bool = Field(default=False)
     logging_types: list[str] = Field(
@@ -459,14 +485,7 @@ class EksConfigInput(BaseModel):
         description="KMS key ARN (None = AWS creates one)",
     )
 
-    
     zonal_shift_enabled: bool = Field(default=False)
-    deletion_protection: bool = Field(default=False)
-
-    
-    addons: Optional[EksAddonsInput] = None
-
-    node_groups: Optional[list[NodeGroupInput]] = None
 
     tags: dict[str, str] = Field(default_factory=dict)
 
@@ -486,10 +505,18 @@ class EksConfigResolved(BaseModel):
     """Fully resolved EKS configuration."""
 
     version: str
-    mode: EksMode
     service_ipv4_cidr: str
 
     access: EksAccessResolved
+
+    # Bootstrap node group (always present)
+    bootstrap_node_group: BootstrapNodeGroupConfig
+
+    # Karpenter config (always present)
+    karpenter: KarpenterConfigResolved
+
+    # EKS addons
+    addons: EksAddonsResolved
 
     logging_enabled: bool
     logging_types: list[str]
@@ -498,11 +525,6 @@ class EksConfigResolved(BaseModel):
     encryption_kms_key_arn: Optional[str]
 
     zonal_shift_enabled: bool
-    deletion_protection: bool
-
-    addons: EksAddonsResolved
-
-    node_groups: list[NodeGroupResolved]
 
     tags: dict[str, str]
 
@@ -552,6 +574,7 @@ class ClusterAddonsResolved(BaseModel):
     argocd: ArgoCDAddonResolved
 
 
+
 class AddonInstallStatus(str, Enum):
     """Status of an addon installation via SSM."""
 
@@ -575,10 +598,7 @@ class AddonInstallResult(BaseModel):
 
 
 class CustomerConfigInput(BaseModel):
-    """Input model for creating/updating customer configuration.
-
-    This is what the API accepts - partial config with sensible defaults.
-    """
+    """Input model for creating/updating customer configuration."""
 
     customer_id: str = Field(
         ...,
@@ -593,28 +613,19 @@ class CustomerConfigInput(BaseModel):
         pattern=r"^[a-z0-9-]+$",
     )
 
-    # AWS configuration - required
     aws_config: AwsConfigInput
 
-    # VPC configuration - optional, uses defaults
     vpc_config: Optional[VpcConfigInput] = None
 
-    # EKS configuration - optional, uses defaults
     eks_config: Optional[EksConfigInput] = None
 
-    # Cluster-level addons (ArgoCD, etc.) - installed via SSM after deployment
     addons: Optional[ClusterAddonsInput] = None
 
-    # Global tags applied to all resources
     tags: dict[str, str] = Field(default_factory=dict)
 
 
 class CustomerConfigResolved(BaseModel):
-    """Fully resolved customer configuration.
-
-    This is what gets stored - complete config with all defaults filled.
-    Every field is explicitly set, no optionals.
-    """
+    """Fully resolved customer configuration."""
 
     customer_id: str
     environment: str
@@ -623,7 +634,6 @@ class CustomerConfigResolved(BaseModel):
     vpc_config: VpcConfigResolved
     eks_config: EksConfigResolved
 
-    # Cluster-level addons (ArgoCD, etc.) - optional to not break existing configs
     addons: Optional[ClusterAddonsResolved] = None
 
     tags: dict[str, str]
@@ -666,7 +676,6 @@ class CustomerConfigListResponse(BaseModel):
 
     configs: list[CustomerConfigResponse]
     total: int
-
 
 
 class DeployRequest(BaseModel):
@@ -738,4 +747,3 @@ class ValidationErrorResponse(BaseModel):
     error: str = "validation_error"
     message: str
     details: list[ValidationErrorDetail]
-
