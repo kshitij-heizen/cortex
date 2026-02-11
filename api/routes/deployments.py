@@ -269,10 +269,6 @@ async def get_deployment_status(
                         outputs=json.dumps(outputs),
                         error_message="",
                     )
-                    # Auto-trigger addon installation after first SUCCEEDED (delay so access node user-data can finish)
-                    asyncio.create_task(
-                        _auto_install_addons_after_delay(customer_id, environment)
-                    )
                 updated = db.get_deployment(customer_id, environment)
                 if updated:
                     deployment = updated

@@ -25,6 +25,8 @@ class Settings(BaseSettings):
 
     config_storage_path: str = "config"
 
+    pulumi_webhook_secret: str = ""  # Optional: HMAC secret for webhook signature verification
+
 
 @lru_cache
 def get_settings() -> Settings:
