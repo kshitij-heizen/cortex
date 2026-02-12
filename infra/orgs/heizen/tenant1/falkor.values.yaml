@@ -1,5 +1,7 @@
 organization: heizen
 tenantId: tenant1
+namespace: falkordb-heizen    
+clusterName: falkordb         
 
 # Auth - uses shared secret from falkordb-shared namespace
 auth:

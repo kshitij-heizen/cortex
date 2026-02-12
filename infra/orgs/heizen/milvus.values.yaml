@@ -1,25 +1,5 @@
-organization: heizen
-
-# Milvus cluster config
-cluster:
-  replicas: 1
-
-# Standalone mode (simpler) vs Cluster mode
-mode: standalone
-
-# Resources
-resources:
-  requests:
-    cpu: "500m"
-    memory: "4Gi"
-  limits:
-    cpu: "2000m"
-    memory: "8Gi"
-
-# Storage
-storage:
-  storageClassName: gp3
-  size: 50Gi
+# Organization ID - all names derive from this
+org_id: heizen
 
 # Node placement
 nodeSelector:
@@ -31,55 +11,157 @@ tolerations:
     value: "database-large-scalable"
     effect: "NoSchedule"
 
-# Ingress - gRPC + HTTP via nginx-inc
-ingress:
-  enabled: true
-  className: nginx-inc
+# Storage
+storageClass:
+  create: true
+  parameters:
+    type: gp3
+
+# Milvus cluster config
+milvus:
+  mode: cluster
   
-  # gRPC endpoint (SDK connections)
+  config:
+    logLevel: info
+    authEnabled: true
+  
+  components:
+    proxy:
+      replicas: 1
+      serviceType: ClusterIP
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "1Gi"
+        limits:
+          cpu: "2"
+          memory: "4Gi"
+    
+    queryNode:
+      replicas: 1
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "2Gi"
+        limits:
+          cpu: "4"
+          memory: "8Gi"
+    
+    dataNode:
+      replicas: 1
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "1Gi"
+        limits:
+          cpu: "2"
+          memory: "4Gi"
+    
+    indexNode:
+      replicas: 1
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "1Gi"
+        limits:
+          cpu: "4"
+          memory: "8Gi"
+    
+    mixCoord:
+      replicas: 1
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "512Mi"
+        limits:
+          cpu: "2"
+          memory: "2Gi"
+
+  dependencies:
+    etcd:
+      deletionPolicy: Delete
+      pvcDeletion: false
+      replicaCount: 1
+      storageSize: 10Gi
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "512Mi"
+        limits:
+          cpu: "1"
+          memory: "2Gi"
+    
+    minio:
+      deletionPolicy: Delete
+      pvcDeletion: false
+      mode: standalone
+      replicas: 1
+      storageSize: 50Gi
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "512Mi"
+        limits:
+          cpu: "2"
+          memory: "4Gi"
+    
+    msgStream:
+      type: pulsar
+    
+    pulsar:
+      deletionPolicy: Delete
+      pvcDeletion: false
+      proxy:
+        replicas: 1
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+      bookkeeper:
+        replicas: 2
+        journalSize: 20Gi
+        ledgersSize: 50Gi
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "512Mi"
+      zookeeper:
+        replicas: 1
+        storageSize: 10Gi
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+      broker:
+        replicas: 1
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "512Mi"
+
+# Ingress
+ingress:
+  className: nginx-inc
+  domain: milvusdb.usecortex.ai
   grpc:
     enabled: true
-    host: heizen.milvusdb.usecortex.ai
-    tls:
-      enabled: true
-      secretName: milvus-heizen-tls
-  
-  # HTTP endpoint (Attu UI / REST API)
-  http:
+  webui:
     enabled: true
-    host: heizen-ui.milvusdb.usecortex.ai
-    tls:
-      enabled: true
-      secretName: milvus-heizen-ui-tls
+  attu:
+    enabled: true
 
-# TLS certificates
-certificate:
-  create: true
-  issuer: letsencrypt-dns01
-  issuerKind: ClusterIssuer
-
-# Attu UI (Milvus web interface)
+# Attu UI
 attu:
   enabled: true
-  resources:
-    requests:
-      cpu: "100m"
-      memory: "128Mi"
-    limits:
-      cpu: "500m"
-      memory: "512Mi"
+  replicas: 1
 
-# Dependencies (in-cluster)
-etcd:
+# Certificates
+certificate:
+  create: true
+  issuerRef:
+    name: letsencrypt-dns01
+    kind: ClusterIssuer
+
+# Monitoring
+monitoring:
   enabled: true
-  replicaCount: 1
-  persistence:
-    size: 10Gi
-
-minio:
-  enabled: true
-  persistence:
-    size: 20Gi
-
-pulsar:
-  enabled: false  # Not needed for standalone mode
