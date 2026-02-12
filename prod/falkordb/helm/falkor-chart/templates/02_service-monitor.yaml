@@ -1,0 +1,54 @@
+{{- if .Values.monitoring.enabled }}
+{{- $fullName := printf "%s-%s-%s" .Values.clusterName .Values.organization .Values.tenantId }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $fullName }}-redis-monitor
+  namespace: {{ .Values.namespace }}
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: {{ $fullName }}-exporter
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.namespace }}
+  endpoints:
+  - port: http-metrics
+    path: /metrics
+    interval: 30s
+    relabelings:
+      - action: replace
+        replacement: {{ .Values.organization }}
+        targetLabel: organization
+      - action: replace
+        replacement: {{ .Values.tenantId }}
+        targetLabel: tenantId
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $fullName }}-stats-monitor
+  namespace: {{ .Values.namespace }}
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: {{ $fullName }}-stats-exporter
+  namespaceSelector:
+    matchNames:
+      - {{ .Values.namespace }}
+  endpoints:
+  - port: http-metrics
+    path: /metrics
+    interval: {{ .Values.monitoring.statsExporter.scrapeInterval }}s
+    relabelings:
+      - action: replace
+        replacement: {{ .Values.organization }}
+        targetLabel: organization
+      - action: replace
+        replacement: {{ .Values.tenantId }}
+        targetLabel: tenantId
+{{- end }}

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: falkordb-dashboard
+  namespace: falkordb-dashboard
+spec:
+  selector:
+    app: falkordb-dashboard
+  type: ClusterIP
+  sessionAffinity: None
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  ports:
+  - name: ui
+    protocol: TCP
+    port: 3000
+    targetPort: 3000
