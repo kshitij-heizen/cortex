@@ -1,0 +1,70 @@
+organization: heizen
+tenantId: tenant1
+
+# Auth - uses shared secret from falkordb-shared namespace
+auth:
+  useSharedSecret: true
+  sharedSecretName: "falkordb-shared-password"
+  sharedSecretNamespace: "falkordb-shared"
+  sharedSecretKey: "password"
+
+# Ingress - TLS via nginx-inc TransportServer
+ingress:
+  enabled: true
+  domain: falkordb.usecortex.ai
+  className: nginx-inc
+  useWildcardCert: true
+  wildcardCertSecret: falkordb-wildcard-tls
+  wildcardCertNamespace: falkordb-shared
+
+# Data nodes (FalkorDB replicas)
+dataNode:
+  replicas: 2
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "4Gi"
+    limits:
+      cpu: "1500m"
+      memory: "12Gi"
+  nodeSelector:
+    karpenter.sh/nodepool: memory-pool-xlarge
+  tolerations:
+    - key: "workload"
+      operator: "Equal"
+      value: "database-large-scalable"
+      effect: "NoSchedule"
+  storage:
+    storageClassName: gp3
+    size: 100Gi
+
+# Sentinel nodes (HA coordination)
+sentinelNode:
+  replicas: 3
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  nodeSelector:
+    karpenter.sh/nodepool: general-pool
+  storage:
+    storageClassName: gp3
+    size: 10Gi
+
+# Stunnel (TLS termination)
+stunnel:
+  replicas: 2
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
+
+# Monitoring (optional - set false to skip exporters)
+monitoring:
+  enabled: true

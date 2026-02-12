@@ -1,0 +1,85 @@
+organization: heizen
+
+# Milvus cluster config
+cluster:
+  replicas: 1
+
+# Standalone mode (simpler) vs Cluster mode
+mode: standalone
+
+# Resources
+resources:
+  requests:
+    cpu: "500m"
+    memory: "4Gi"
+  limits:
+    cpu: "2000m"
+    memory: "8Gi"
+
+# Storage
+storage:
+  storageClassName: gp3
+  size: 50Gi
+
+# Node placement
+nodeSelector:
+  karpenter.sh/nodepool: memory-pool-xlarge
+
+tolerations:
+  - key: "workload"
+    operator: "Equal"
+    value: "database-large-scalable"
+    effect: "NoSchedule"
+
+# Ingress - gRPC + HTTP via nginx-inc
+ingress:
+  enabled: true
+  className: nginx-inc
+  
+  # gRPC endpoint (SDK connections)
+  grpc:
+    enabled: true
+    host: heizen.milvusdb.usecortex.ai
+    tls:
+      enabled: true
+      secretName: milvus-heizen-tls
+  
+  # HTTP endpoint (Attu UI / REST API)
+  http:
+    enabled: true
+    host: heizen-ui.milvusdb.usecortex.ai
+    tls:
+      enabled: true
+      secretName: milvus-heizen-ui-tls
+
+# TLS certificates
+certificate:
+  create: true
+  issuer: letsencrypt-dns01
+  issuerKind: ClusterIssuer
+
+# Attu UI (Milvus web interface)
+attu:
+  enabled: true
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# Dependencies (in-cluster)
+etcd:
+  enabled: true
+  replicaCount: 1
+  persistence:
+    size: 10Gi
+
+minio:
+  enabled: true
+  persistence:
+    size: 20Gi
+
+pulsar:
+  enabled: false  # Not needed for standalone mode

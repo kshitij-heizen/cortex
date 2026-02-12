@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kubeblocks
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://apecloud.github.io/helm-charts
+    chart: kubeblocks
+    targetRevision: "0.9.1"
+    helm:
+      releaseName: kubeblocks
+      values: |
+        nodeSelector:
+          karpenter.sh/nodepool: general-pool
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kubeblocks
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

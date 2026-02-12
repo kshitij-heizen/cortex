@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: tenant-falkordb
+  namespace: argocd
+spec:
+  description: "FalkorDB tenant deployments"
+  
+  sourceRepos:
+    - https://github.com/opengig/cortex.git
+  
+  destinations:
+    - namespace: 'falkordb-*'
+      server: https://kubernetes.default.svc
+    - namespace: 'falkordb-shared'
+      server: https://kubernetes.default.svc
+  
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: 'k8s.nginx.org'
+      kind: TransportServer
+  
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  
+  orphanedResources:
+    warn: true

@@ -1,0 +1,52 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: multi-org-milvus
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  
+  generators:
+    - git:
+        repoURL: https://github.com/opengig/cortex.git
+        revision: HEAD
+        requeueAfterSeconds: 180
+        files:
+          - path: "infra/orgs/*/milvus.values.yaml"
+  
+  template:
+    metadata:
+      name: 'milvus-{{ index .path.segments 2 }}'
+      labels:
+        app.kubernetes.io/part-of: milvus
+        organization: '{{ index .path.segments 2 }}'
+    spec:
+      project: tenant-milvus
+      
+      source:
+        repoURL: https://github.com/opengig/cortex.git
+        targetRevision: HEAD
+        path: infra/charts/milvus
+        helm:
+          releaseName: '{{ index .path.segments 2 }}-milvus'
+          valueFiles:
+            - '/{{ .path.path }}'
+      
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'milvus-{{ index .path.segments 2 }}'
+      
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
