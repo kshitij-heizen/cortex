@@ -1,24 +1,28 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: milvus-operator
+  name: kubeblocks
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   
   source:
-    repoURL: https://github.com/zilliztech/milvus-operator/releases/download/v1.1.2/milvus-operator-1.1.2.tgz
+    repoURL: https://apecloud.github.io/helm-charts
+    chart: kubeblocks
+    targetRevision: "0.9.1"
     helm:
-      releaseName: milvus-operator
+      releaseName: kubeblocks
       values: |
         nodeSelector:
           karpenter.sh/nodepool: general-pool
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: milvus-operator
+    namespace: kubeblocks
 
   syncPolicy:
     automated:

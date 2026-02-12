@@ -1,0 +1,60 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus-ingress
+  namespace: monitoring
+  annotations:
+    nginx.org/proxy-connect-timeout: "60s"
+    nginx.org/proxy-read-timeout: "300s"
+    nginx.org/proxy-send-timeout: "300s"
+    cert-manager.io/cluster-issuer: "letsencrypt-dns01"
+spec:
+  ingressClassName: nginx-inc
+  tls:
+    - hosts:
+        - prometheus-prod.usecortex.ai
+      secretName: prometheus-tls
+  rules:
+    - host: prometheus-prod.usecortex.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: monitoring-kube-prometheus-prometheus
+                port:
+                  number: 9090
+---
+# Policy for basic auth (nginx-inc)
+apiVersion: k8s.nginx.org/v1
+kind: Policy
+metadata:
+  name: prometheus-basic-auth-policy
+  namespace: monitoring
+spec:
+  basicAuth:
+    secret: prometheus-basic-auth
+    realm: "Prometheus"
+---
+# VirtualServer for basic auth (nginx-inc requires this for Policy)
+apiVersion: k8s.nginx.org/v1
+kind: VirtualServer
+metadata:
+  name: prometheus-vs
+  namespace: monitoring
+spec:
+  ingressClassName: nginx-inc
+  host: prometheus-prod.usecortex.ai
+  policies:
+    - name: prometheus-basic-auth-policy
+  tls:
+    secret: prometheus-tls
+  upstreams:
+    - name: prometheus
+      service: monitoring-kube-prometheus-prometheus
+      port: 9090
+  routes:
+    - path: /
+      action:
+        pass: prometheus

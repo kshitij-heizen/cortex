@@ -1,8 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
-  name: multi-tenant-falkordb
+  name: multi-org-milvus
   namespace: argocd
+  annotations:
+      argocd.argoproj.io/sync-wave: "2"
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
@@ -12,31 +14,30 @@ spec:
         repoURL: https://github.com/opengig/cortex.git
         revision: HEAD
         requeueAfterSeconds: 180
-        directories:
-          - path: infra/orgs/*/*
+        files:
+          - path: "infra/orgs/*/milvus.values.yaml"
   
   template:
     metadata:
-      name: 'falkordb-{{ index .path.segments 2 }}-{{ .path.basename }}'
+      name: 'milvus-{{ index .path.segments 2 }}'
       labels:
-        app.kubernetes.io/part-of: falkordb
+        app.kubernetes.io/part-of: milvus
         organization: '{{ index .path.segments 2 }}'
-        tenant: '{{ .path.basename }}'
     spec:
-      project: tenant-falkordb
+      project: tenant-milvus
       
       source:
         repoURL: https://github.com/opengig/cortex.git
         targetRevision: HEAD
-        path: infra/charts/falkordb
+        path: infra/charts/milvus
         helm:
-          releaseName: '{{ index .path.segments 2 }}-{{ .path.basename }}-falkordb'
+          releaseName: '{{ index .path.segments 2 }}-milvus'
           valueFiles:
-            - '/{{ .path.path }}/falkor.values.yaml'
+            - '/{{ .path.path }}'
       
       destination:
         server: https://kubernetes.default.svc
-        namespace: 'falkordb-{{ index .path.segments 2 }}'
+        namespace: 'milvus-{{ index .path.segments 2 }}'
       
       syncPolicy:
         automated:
@@ -45,7 +46,6 @@ spec:
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
-          - PrunePropagationPolicy=foreground
         retry:
           limit: 5
           backoff:

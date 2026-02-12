@@ -3,6 +3,8 @@ kind: AppProject
 metadata:
   name: tenant-falkordb
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   description: "FalkorDB tenant deployments"
   
@@ -26,4 +28,5 @@ spec:
       kind: '*'
   
   orphanedResources:
+  
     warn: true
