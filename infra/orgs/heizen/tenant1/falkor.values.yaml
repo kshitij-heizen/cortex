@@ -50,8 +50,6 @@ sentinelNode:
     limits:
       cpu: "500m"
       memory: "512Mi"
-  nodeSelector:
-    karpenter.sh/nodepool: general-pool
   storage:
     storageClassName: gp3
     size: 10Gi

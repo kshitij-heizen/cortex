@@ -35,7 +35,7 @@ spec:
         helm:
           releaseName: '{{ index .path.segments 2 }}-milvus'
           valueFiles:
-            - '/{{ .path.path }}'
+            - '/infra/orgs/{{ index .path.segments 2 }}/milvus.values.yaml'
       
       destination:
         server: https://kubernetes.default.svc
@@ -48,6 +48,7 @@ spec:
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
+          - SkipDryRunOnMissingResource=true
         retry:
           limit: 5
           backoff:

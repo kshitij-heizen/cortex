@@ -1,10 +1,6 @@
 # Organization ID - all names derive from this
 org_id: heizen
 
-# Node placement
-nodeSelector:
-  karpenter.sh/nodepool: memory-pool-xlarge
-
 tolerations:
   - key: "workload"
     operator: "Equal"

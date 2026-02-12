@@ -229,6 +229,142 @@ kubectl get nodepools
 echo "==> Karpenter installation complete!"
 """
 
+    def _build_storage_and_nodepools_script(self, cluster_name: str) -> str:
+        """Build script to create gp3 StorageClass and Karpenter NodePools."""
+        return f"""
+# =============================================================================
+# STORAGE CLASS (gp3)
+# =============================================================================
+echo "==> Creating gp3 StorageClass..."
+
+cat <<'STORAGECLASS_EOF' | kubectl apply -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  fsType: ext4
+  encrypted: "true"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+STORAGECLASS_EOF
+
+echo "==> Verifying StorageClass..."
+kubectl get storageclass gp3
+
+# =============================================================================
+# KARPENTER NODEPOOLS
+# =============================================================================
+echo "==> Creating Karpenter NodePools..."
+
+cat <<'NODEPOOL_EOF' | kubectl apply -f -
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: general-pool
+spec:
+  template:
+    metadata:
+      labels:
+        role: general
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+      requirements:
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values: ["m6i.medium", "m6i.large", "m6i.xlarge", "m6a.medium", "m6a.large", "m6a.xlarge", "m7i.medium", "m7i.large"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+  limits:
+    cpu: 100
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 5m
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: memory-pool-xlarge
+spec:
+  template:
+    metadata:
+      labels:
+        role: memory-db-large-scalable
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+      requirements:
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values: ["r6i.large", "r6i.xlarge", "r6i.2xlarge", "r6a.large", "r6a.xlarge", "r6a.2xlarge"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+      taints:
+        - key: workload
+          value: database-large-scalable
+          effect: NoSchedule
+  limits:
+    cpu: 100
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 30m
+    budgets:
+      - nodes: "0"
+        reasons:
+          - Drifted
+          - Underutilized
+NODEPOOL_EOF
+
+echo "==> Verifying NodePools..."
+kubectl get nodepools
+
+# =============================================================================
+# KUBEBLOCKS
+# =============================================================================
+# =============================================================================
+# KUBEBLOCKS INSTALLATION
+# =============================================================================
+echo "==> Installing KubeBlocks..."
+
+helm repo add kubeblocks https://apecloud.github.io/helm-charts
+helm repo update
+
+# First, install CRDs only
+echo "==> Installing KubeBlocks CRDs..."
+helm pull kubeblocks/kubeblocks --version 0.9.1 --untar
+kubectl apply -f kubeblocks/crds/ --server-side
+rm -rf kubeblocks
+
+# Wait for CRDs to be established
+echo "==> Waiting for CRDs to be ready..."
+sleep 10
+kubectl wait --for=condition=Established crd --all --timeout=60s
+
+# Now install KubeBlocks (CRDs already exist)
+echo "==> Installing KubeBlocks operator..."
+helm upgrade --install kubeblocks kubeblocks/kubeblocks \\
+    --namespace kubeblocks --create-namespace \\
+    --version "0.9.1" \\
+    --set crds.enabled=false \\
+    --wait --timeout 10m
+
+echo "==> Verifying KubeBlocks..."
+kubectl get pods -n kubeblocks
+kubectl get crd | grep kubeblocks | head -5
+
+echo "==> KubeBlocks installation complete!"
+"""
+
+
     def _build_argocd_install_script(
         self,
         argocd_config: ArgoCDAddonResolved,
@@ -402,6 +538,8 @@ echo "==> Karpenter installation complete!"
                 node_role_name=node_role_name,
             )
         )
+
+        script_parts.append(self._build_storage_and_nodepools_script(cluster_name))
 
         # Add ArgoCD installation if enabled
         if argocd_config and argocd_config.enabled:
