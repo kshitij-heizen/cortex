@@ -1,6 +1,9 @@
 # Organization ID - all names derive from this
 org_id: heizen
 
+nodeSelector:
+  role: memory-db-large-scalable
+
 tolerations:
   - key: "workload"
     operator: "Equal"

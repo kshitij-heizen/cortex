@@ -30,7 +30,7 @@ dataNode:
       cpu: "1500m"
       memory: "12Gi"
   nodeSelector:
-    karpenter.sh/nodepool: memory-pool-xlarge
+    role: memory-db-large-scalable
   tolerations:
     - key: "workload"
       operator: "Equal"
