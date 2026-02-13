@@ -23,3 +23,8 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+    ignoreDifferences:
+      - group: milvus.io
+        kind: Milvus
+        managedFieldsManagers:
+          - milvus-operator

@@ -23,3 +23,9 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+  ignoreDifferences:
+    - group: apps.kubeblocks.io
+      kind: Cluster
+      jsonPointers:
+        - /spec/componentSpecs/0/serviceVersion
+        - /spec/componentSpecs/0/disableExporter

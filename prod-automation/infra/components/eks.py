@@ -128,6 +128,32 @@ class EksCluster(pulumi.ComponentResource):
             opts=child_opts,
         )
 
+        eks_managed_sg_id = self.cluster.vpc_config.cluster_security_group_id
+
+        aws.ec2.SecurityGroupRule(
+            f"{name}-eks-sg-from-eks-managed",
+            type="ingress",
+            security_group_id=self.cluster_sg.id,
+            source_security_group_id=eks_managed_sg_id,
+            protocol="-1",
+            from_port=0,
+            to_port=0,
+            description="Allow all traffic from EKS-managed cluster security group",
+            opts=child_opts,
+        )
+
+        aws.ec2.SecurityGroupRule(
+            f"{name}-eks-managed-from-custom-sg",
+            type="ingress",
+            security_group_id=eks_managed_sg_id,
+            source_security_group_id=self.cluster_sg.id,
+            protocol="-1",
+            from_port=0,
+            to_port=0,
+            description="Allow all traffic from Pulumi-managed cluster security group",
+            opts=child_opts,
+        )
+
         # Create OIDC provider for IRSA (required for Karpenter)
         self.oidc_provider = self._create_oidc_provider(child_opts)
 
@@ -318,8 +344,8 @@ class EksCluster(pulumi.ComponentResource):
                                 "ec2:CreateFleet",
                             ],
                             "Resource": [
-                                "arn:aws:ec2::*:image/*",
-                                "arn:aws:ec2::*:snapshot/*",
+                                "arn:aws:ec2:*::image/*",
+                                "arn:aws:ec2:*::snapshot/*",
                                 "arn:aws:ec2:*:*:security-group/*",
                                 "arn:aws:ec2:*:*:subnet/*",
                             ],
@@ -422,6 +448,7 @@ class EksCluster(pulumi.ComponentResource):
                                 "ec2:DescribeSecurityGroups",
                                 "ec2:DescribeSpotPriceHistory",
                                 "ec2:DescribeSubnets",
+                                "ec2:DescribeLaunchTemplateVersions",
                             ],
                             "Resource": "*",
                         },

@@ -9,6 +9,12 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
+  ignoreDifferences:
+    - group: ""
+      kind: Service
+      jsonPointers:
+        - /metadata/annotations
+        - /metadata/finalizers
   
   source:
     repoURL: https://helm.nginx.com/stable

@@ -328,33 +328,26 @@ echo "==> Verifying NodePools..."
 kubectl get nodepools
 
 # =============================================================================
-# KUBEBLOCKS
-# =============================================================================
-# =============================================================================
 # KUBEBLOCKS INSTALLATION
 # =============================================================================
 echo "==> Installing KubeBlocks..."
-
 helm repo add kubeblocks https://apecloud.github.io/helm-charts
 helm repo update
 
-# First, install CRDs only
+# Install CRDs first from GitHub - USE v1.0.0
 echo "==> Installing KubeBlocks CRDs..."
-helm pull kubeblocks/kubeblocks --version 0.9.1 --untar
-kubectl apply -f kubeblocks/crds/ --server-side
-rm -rf kubeblocks
+kubectl apply -f https://github.com/apecloud/kubeblocks/releases/download/v1.0.0/kubeblocks_crds.yaml --server-side
 
 # Wait for CRDs to be established
 echo "==> Waiting for CRDs to be ready..."
 sleep 10
-kubectl wait --for=condition=Established crd --all --timeout=60s
+kubectl wait --for=condition=Established crd --all --timeout=120s
 
-# Now install KubeBlocks (CRDs already exist)
+# Now install KubeBlocks - USE v1.0.0
 echo "==> Installing KubeBlocks operator..."
-helm upgrade --install kubeblocks kubeblocks/kubeblocks \\
-    --namespace kubeblocks --create-namespace \\
-    --version "0.9.1" \\
-    --set crds.enabled=false \\
+helm upgrade --install kubeblocks kubeblocks/kubeblocks \
+    --namespace kubeblocks --create-namespace \
+    --version "1.0.0" \
     --wait --timeout 10m
 
 echo "==> Verifying KubeBlocks..."
@@ -362,6 +355,73 @@ kubectl get pods -n kubeblocks
 kubectl get crd | grep kubeblocks | head -5
 
 echo "==> KubeBlocks installation complete!"
+
+# =============================================================================
+# VOLUMESNAPSHOT CRDS (required by KubeBlocks dataprotection)
+# =============================================================================
+echo "==> Installing VolumeSnapshot CRDs..."
+kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/master/client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/master/client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter/master/client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml
+
+# =============================================================================
+# FALKORDB ADDON (manual Helm install - jihulab.com unreachable from in-cluster)
+# =============================================================================
+echo "==> Installing FalkorDB addon..."
+FALKORDB_CHART_URL="https://jihulab.com/api/v4/projects/150246/packages/helm/stable/charts/falkordb-1.0.1.tgz"
+curl -L --retry 3 --connect-timeout 30 "$FALKORDB_CHART_URL" -o /tmp/falkordb.tgz
+
+if helm status kb-addon-falkordb -n kubeblocks &>/dev/null; then
+    echo "==> FalkorDB addon already installed, upgrading..."
+    helm upgrade kb-addon-falkordb /tmp/falkordb.tgz -n kubeblocks
+else
+    helm install kb-addon-falkordb /tmp/falkordb.tgz -n kubeblocks
+fi
+
+echo "==> Waiting for FalkorDB ClusterDefinition..."
+timeout=120
+elapsed=0
+while [ $elapsed -lt $timeout ]; do
+    if kubectl get clusterdefinitions.apps.kubeblocks.io falkordb &>/dev/null; then
+        echo "==> FalkorDB ClusterDefinition is ready!"
+        break
+    fi
+    sleep 5
+    elapsed=$((elapsed + 5))
+done
+
+kubectl get clusterdefinitions.apps.kubeblocks.io | grep falkordb
+echo "==> FalkorDB addon installation complete!"
+
+# =============================================================================
+# MILVUS OPERATOR
+# =============================================================================
+echo "==> Installing Milvus Operator..."
+
+helm repo add milvus-operator https://zilliztech.github.io/milvus-operator
+helm repo update
+
+if helm status milvus-operator -n milvus-operator &>/dev/null; then
+    echo "==> Milvus Operator already installed, upgrading..."
+    helm upgrade milvus-operator milvus-operator/milvus-operator -n milvus-operator --wait --timeout 5m
+else
+    helm install milvus-operator milvus-operator/milvus-operator -n milvus-operator --create-namespace --wait --timeout 5m
+fi
+
+echo "==> Waiting for Milvus CRDs..."
+timeout=120
+elapsed=0
+while [ $elapsed -lt $timeout ]; do
+    if kubectl get crd milvuses.milvus.io &>/dev/null; then
+        echo "==> Milvus CRDs are ready!"
+        break
+    fi
+    sleep 5
+    elapsed=$((elapsed + 5))
+done
+kubectl get pods -n milvus-operator
+echo "==> Milvus Operator installation complete!"
+
 """
 
 
