@@ -1,5 +1,5 @@
 {{- $fullName := printf "%s-%s-%s" .Values.clusterName .Values.organization .Values.tenantId}}
-apiVersion: apps.kubeblocks.io/v1alpha1
+apiVersion: apps.kubeblocks.io/v1
 kind: Cluster
 metadata:
   name: {{ $fullName }}
@@ -14,15 +14,6 @@ spec:
   - name: falkordb
     serviceVersion: "4.12.5"
     replicas: {{ .Values.dataNode.replicas }}
-    {{- if .Values.auth.useSharedSecret }}
-    # Override default account password with shared secret
-    systemAccounts:
-    - name: default
-      secretRef:
-        name: {{ .Values.auth.sharedSecretName }}
-        namespace: {{ .Values.auth.sharedSecretNamespace }}
-        password: {{ .Values.auth.sharedSecretKey }}
-    {{- end }}
     disableExporter: false
     resources:
       requests:

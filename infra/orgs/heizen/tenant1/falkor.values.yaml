@@ -3,13 +3,6 @@ tenantId: tenant1
 namespace: falkordb-heizen    
 clusterName: falkordb         
 
-# Auth - uses shared secret from falkordb-shared namespace
-auth:
-  useSharedSecret: true
-  sharedSecretName: "falkordb-shared-password"
-  sharedSecretNamespace: "falkordb-shared"
-  sharedSecretKey: "password"
-
 # Ingress - TLS via nginx-inc TransportServer
 ingress:
   enabled: true
@@ -43,6 +36,8 @@ dataNode:
 # Sentinel nodes (HA coordination)
 sentinelNode:
   replicas: 3
+  nodeSelector:
+    role: general
   resources:
     requests:
       cpu: "100m"
