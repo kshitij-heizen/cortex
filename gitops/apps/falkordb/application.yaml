@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: milvus
+  name: falkordb
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -10,12 +10,12 @@ spec:
   source:
     repoURL: https://github.com/opengig/cortex.git
     targetRevision: HEAD
-    path: prod/milvus/helm/milvus-chart
+    path: prod/falkordb/helm/falkor-chart
     helm:
-      releaseName: milvus
+      releaseName: falkordb
   destination:
     server: https://kubernetes.default.svc
-    namespace: milvus-cortexai
+    namespace: falkordb-cortex
   syncPolicy:
     automated:
       prune: true
