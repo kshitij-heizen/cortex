@@ -57,6 +57,7 @@ sentinelNode:
 # Stunnel (TLS termination)
 stunnel:
   replicas: 2
+  image: dweomer/stunnel:latest
   resources:
     requests:
       cpu: "50m"
@@ -65,6 +66,11 @@ stunnel:
       cpu: "200m"
       memory: "128Mi"
 
-# Monitoring (optional - set false to skip exporters)
+# Monitoring
 monitoring:
   enabled: true
+  redisExporter:
+    image: oliver006/redis_exporter:latest
+  statsExporter:
+    image: python:3.11-slim
+    scrapeInterval: "60"

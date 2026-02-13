@@ -1,6 +1,9 @@
 # Organization ID - all names derive from this
 org_id: heizen
 
+namespace:
+  create: true
+
 nodeSelector:
   role: memory-db-large-scalable
 
@@ -153,6 +156,9 @@ ingress:
 attu:
   enabled: true
   replicas: 1
+  image:
+    repository: zilliz/attu
+    tag: v2.3.10
 
 # Certificates
 certificate:
