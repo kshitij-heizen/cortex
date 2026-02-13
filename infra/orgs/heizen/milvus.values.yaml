@@ -4,6 +4,9 @@ org_id: heizen
 namespace:
   create: true
 
+clusterIssuer:
+  create: false
+
 nodeSelector:
   role: memory-db-large-scalable
 
@@ -160,13 +163,7 @@ attu:
     repository: zilliz/attu
     tag: v2.3.10
 
-# Certificates
-certificate:
-  create: true
-  issuerRef:
-    name: letsencrypt-dns01
-    kind: ClusterIssuer
 
 # Monitoring
 monitoring:
-  enabled: true
+  enabled: false

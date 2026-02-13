@@ -8,8 +8,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
-  
+  project: default  
   source:
     repoURL: https://zilliztech.github.io/milvus-operator
     chart: milvus-operator
@@ -19,11 +18,9 @@ spec:
       values: |
         nodeSelector:
           role: general
-
   destination:
     server: https://kubernetes.default.svc
     namespace: milvus-operator
-
   syncPolicy:
     automated:
       prune: true
@@ -31,3 +28,10 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: batch
+      kind: Job
+      name: milvus-operator-checker
+      jsonPointers:
+        - /spec

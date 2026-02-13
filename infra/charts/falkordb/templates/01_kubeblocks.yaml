@@ -1,5 +1,5 @@
 {{- $fullName := printf "%s-%s-%s" .Values.clusterName .Values.organization .Values.tenantId}}
-apiVersion: apps.kubeblocks.io/v1
+apiVersion: apps.kubeblocks.io/v1alpha1
 kind: Cluster
 metadata:
   name: {{ $fullName }}

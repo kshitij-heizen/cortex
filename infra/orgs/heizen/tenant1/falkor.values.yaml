@@ -68,9 +68,4 @@ stunnel:
 
 # Monitoring
 monitoring:
-  enabled: true
-  redisExporter:
-    image: oliver006/redis_exporter:latest
-  statsExporter:
-    image: python:3.11-slim
-    scrapeInterval: "60"
+  enabled: false
