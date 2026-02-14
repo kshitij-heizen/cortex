@@ -59,4 +59,9 @@ sentinelNode:
     size: 10Gi
 
 monitoring:
-  enabled: false
+  enabled: true
+  redisExporter:
+    image: oliver006/redis_exporter:v1.62.0
+  statsExporter:
+    image: python:3.11-slim
+    scrapeInterval: 60

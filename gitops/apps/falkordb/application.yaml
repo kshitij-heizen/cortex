@@ -25,9 +25,11 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
   ignoreDifferences:
     - group: apps.kubeblocks.io
       kind: Cluster
-      jsonPointers:
-        - /spec/componentSpecs/0/serviceVersion
-        - /spec/componentSpecs/0/disableExporter
+      jqPathExpressions:
+        - .spec.componentSpecs[].serviceVersion
+        - .spec.componentSpecs[].disableExporter
+        - .spec.componentSpecs[].componentDef

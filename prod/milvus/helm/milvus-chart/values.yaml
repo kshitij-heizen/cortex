@@ -159,4 +159,6 @@ clusterIssuer:
   create: false
 
 monitoring:
-  enabled: false
+  enabled: true
+  releaseLabel: monitoring
+  interval: 30s

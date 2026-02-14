@@ -9,13 +9,6 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  ignoreDifferences:
-    - group: ""
-      kind: Service
-      jsonPointers:
-        - /metadata/annotations
-        - /metadata/finalizers
-  
   source:
     repoURL: https://helm.nginx.com/stable
     chart: nginx-ingress
@@ -27,13 +20,13 @@ spec:
           ingressClass:
             name: nginx-inc
             setAsDefaultIngress: true
-          
+
           config:
             entries:
               http2: "true"
-          
+
           enableTLSPassthrough: true
-          
+
           globalConfiguration:
             create: true
             spec:
@@ -41,16 +34,16 @@ spec:
                 - name: tls-passthrough
                   port: 6380
                   protocol: TLS_PASSTHROUGH
-          
+
           service:
             type: LoadBalancer
             annotations:
               service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
               service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
               service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
-          
+
           replicaCount: 2
-          
+
           nodeSelector:
             role: general
 
@@ -65,3 +58,19 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: ""
+      kind: Service
+      name: nginx-inc-nginx-ingress-controller
+      jsonPointers:
+        - /metadata/annotations
+        - /metadata/finalizers
+        - /spec/externalTrafficPolicy
+        - /spec/allocateLoadBalancerNodePorts
+        - /spec/healthCheckNodePort
+        - /spec/clusterIP
+        - /spec/clusterIPs
+        - /spec/ipFamilies
+        - /spec/ipFamilyPolicy
+        - /status
