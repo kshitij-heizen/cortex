@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: milvus
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -23,6 +25,7 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
   ignoreDifferences:
       - group: milvus.io
         kind: Milvus
