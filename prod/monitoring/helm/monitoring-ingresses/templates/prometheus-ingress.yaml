@@ -6,9 +6,6 @@ metadata:
     nginx.org/proxy-read-timeout: "300s"
     nginx.org/proxy-send-timeout: "300s"
     nginx.org/client-max-body-size: "100m"
-    nginx.ingress.kubernetes.io/auth-type: basic
-    nginx.ingress.kubernetes.io/auth-secret: {{ .Values.prometheus.authSecretName }}
-    nginx.ingress.kubernetes.io/auth-realm: "Authentication Required - Prometheus"
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
   rules:

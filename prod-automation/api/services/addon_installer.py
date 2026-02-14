@@ -509,10 +509,10 @@ helm repo update altinity
 
 if helm status clickhouse-operator -n clickhouse &>/dev/null; then
     echo "==> ClickHouse Operator already installed, upgrading..."
-    helm upgrade clickhouse-operator altinity/altinity-clickhouse-operator \\\\
+    helm upgrade clickhouse-operator altinity/altinity-clickhouse-operator \\
         --version 0.25.5 --namespace clickhouse --wait --timeout 5m
 else
-    helm install clickhouse-operator altinity/altinity-clickhouse-operator \\\\
+    helm install clickhouse-operator altinity/altinity-clickhouse-operator \\
         --version 0.25.5 --namespace clickhouse --create-namespace --wait --timeout 5m
 fi
 
@@ -540,40 +540,40 @@ helm repo update
 
 if helm status monitoring -n monitoring &>/dev/null; then
     echo "==> Monitoring stack already installed, upgrading..."
-    helm upgrade monitoring prometheus-community/kube-prometheus-stack \\\\
-        --namespace monitoring \\\\
-        --version 65.1.1 \\\\
-        --set prometheus.prometheusSpec.nodeSelector.role=general \\\\
-        --set grafana.nodeSelector.role=general \\\\
-        --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \\\\
-        --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \\\\
-        --set prometheus.prometheusSpec.retention=10d \\\\
-        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=gp2 \\\\
-        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=20Gi \\\\
-        --set grafana.persistence.enabled=true \\\\
-        --set grafana.persistence.storageClassName=gp2 \\\\
-        --set grafana.persistence.size=2Gi \\\\
-        --set grafana.adminPassword="Prod_Grafana_Pass123!" \\\\
-        --set alertmanager.enabled=false \\\\
-        --set nodeExporter.enabled=true \\\\
+    helm upgrade monitoring prometheus-community/kube-prometheus-stack \\
+        --namespace monitoring \\
+        --version 65.1.1 \\
+        --set prometheus.prometheusSpec.nodeSelector.role=general \\
+        --set grafana.nodeSelector.role=general \\
+        --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \\
+        --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \\
+        --set prometheus.prometheusSpec.retention=10d \\
+        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=gp2 \\
+        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=20Gi \\
+        --set grafana.persistence.enabled=true \\
+        --set grafana.persistence.storageClassName=gp2 \\
+        --set grafana.persistence.size=2Gi \\
+        --set grafana.adminPassword="Prod_Grafana_Pass123!" \\
+        --set alertmanager.enabled=false \\
+        --set nodeExporter.enabled=true \\
         --wait --timeout 10m
 else
-    helm install monitoring prometheus-community/kube-prometheus-stack \\\\
-        --namespace monitoring --create-namespace \\\\
-        --version 65.1.1 \\\\
-        --set prometheus.prometheusSpec.nodeSelector.role=general \\\\
-        --set grafana.nodeSelector.role=general \\\\
-        --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \\\\
-        --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \\\\
-        --set prometheus.prometheusSpec.retention=10d \\\\
-        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=gp2 \\\\
-        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=20Gi \\\\
-        --set grafana.persistence.enabled=true \\\\
-        --set grafana.persistence.storageClassName=gp2 \\\\
-        --set grafana.persistence.size=2Gi \\\\
-        --set grafana.adminPassword="Prod_Grafana_Pass123!" \\\\
-        --set alertmanager.enabled=false \\\\
-        --set nodeExporter.enabled=true \\\\
+    helm install monitoring prometheus-community/kube-prometheus-stack \\
+        --namespace monitoring --create-namespace \\
+        --version 65.1.1 \\
+        --set prometheus.prometheusSpec.nodeSelector.role=general \\
+        --set grafana.nodeSelector.role=general \\
+        --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \\
+        --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \\
+        --set prometheus.prometheusSpec.retention=10d \\
+        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=gp2 \\
+        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=20Gi \\
+        --set grafana.persistence.enabled=true \\
+        --set grafana.persistence.storageClassName=gp2 \\
+        --set grafana.persistence.size=2Gi \\
+        --set grafana.adminPassword="Prod_Grafana_Pass123!" \\
+        --set alertmanager.enabled=false \\
+        --set nodeExporter.enabled=true \\
         --wait --timeout 10m
 fi
 

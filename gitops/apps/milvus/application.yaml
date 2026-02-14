@@ -23,7 +23,7 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
-    ignoreDifferences:
+  ignoreDifferences:
       - group: milvus.io
         kind: Milvus
         managedFieldsManagers:
