@@ -52,10 +52,11 @@ spec:
       part_log/ttl: "event_date + INTERVAL 3 DAY"
       text_log/enabled: false
       session_log/enabled: false
-      max_memory_usage: 8000000000
-      max_memory_usage_for_user: 8000000000
-      max_memory_usage_for_all_queries: 16000000000
-      memory_overcommit_ratio_denominator: 2
+    profiles:
+      default/max_memory_usage: 8000000000
+      default/max_memory_usage_for_user: 8000000000
+      default/max_memory_usage_for_all_queries: 16000000000
+      default/memory_overcommit_ratio_denominator: 2
     users:
       default/password_sha256_hex: {{ .Values.users.defaultPasswordSha256 | quote }}
       default/networks/ip: "::/0"
