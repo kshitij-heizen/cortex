@@ -45,11 +45,7 @@ spec:
       trace_log/enabled: false
       metric_log/enabled: false
       asynchronous_metric_log/enabled: false
-      query_log/partition_by: toYYYYMM(event_date)
-      query_log/ttl: "event_date + INTERVAL 3 DAY"
       query_thread_log/enabled: false
-      part_log/partition_by: toYYYYMM(event_date)
-      part_log/ttl: "event_date + INTERVAL 3 DAY"
       text_log/enabled: false
       session_log/enabled: false
     profiles:
