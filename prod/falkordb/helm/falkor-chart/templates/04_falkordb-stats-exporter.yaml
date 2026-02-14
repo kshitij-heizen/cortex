@@ -110,10 +110,8 @@ spec:
             secretKeyRef:
               {{- if .Values.auth.useSharedSecret }}
               name: {{ .Values.auth.sharedSecretName }}
-              namespace: {{ .Values.auth.sharedSecretNamespace }}
               {{- else }}
               name: {{ $fullName }}-falkordb-account-default
-              namespace: {{ .Values.namespace }}
               {{- end }}
               key: password
         - name: EXPORTER_PORT
