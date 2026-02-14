@@ -1,0 +1,12 @@
+ingressClassName: nginx-inc
+
+grafana:
+  host: grafana-prod.usecortex.ai
+  serviceName: monitoring-grafana
+  servicePort: 80
+
+prometheus:
+  host: prometheus-prod.usecortex.ai
+  serviceName: prometheus-operated
+  servicePort: 9090
+  authSecretName: prometheus-basic-auth

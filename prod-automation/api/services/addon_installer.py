@@ -425,6 +425,168 @@ echo "==> Milvus Operator installation complete!"
 """
 
 
+    def _build_monitoring_and_data_pipeline_script(self, cluster_name: str) -> str:
+        """Build script to install monitoring stack, ClickHouse operator, and Vector prerequisites."""
+        return f"""
+# =============================================================================
+# CLICKHOUSE STORAGE CLASS
+# =============================================================================
+echo "==> Creating ClickHouse StorageClass..."
+
+cat <<'CH_SC_EOF' | kubectl apply -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: clickhouse-storage
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  iops: "3000"
+  throughput: "125"
+  fsType: ext4
+  encrypted: "true"
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+CH_SC_EOF
+
+echo "==> ClickHouse StorageClass created!"
+
+# =============================================================================
+# CLICKHOUSE KARPENTER NODEPOOL
+# =============================================================================
+echo "==> Creating ClickHouse Karpenter NodePool..."
+
+cat <<'CH_NP_EOF' | kubectl apply -f -
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: clickhouse-pool
+spec:
+  template:
+    metadata:
+      labels:
+        role: clickhouse
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+      requirements:
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values: ["c7i.large", "c7i.xlarge", "c6i.large", "c6i.xlarge"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+      taints:
+        - key: workload
+          value: clickhouse
+          effect: NoSchedule
+  limits:
+    cpu: 100
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 30m
+    budgets:
+      - nodes: "0"
+        reasons:
+          - Drifted
+          - Underutilized
+CH_NP_EOF
+
+echo "==> ClickHouse NodePool created!"
+
+# =============================================================================
+# ALTINITY CLICKHOUSE OPERATOR
+# =============================================================================
+echo "==> Installing Altinity ClickHouse Operator..."
+
+helm repo add altinity https://helm.altinity.com
+helm repo update altinity
+
+if helm status clickhouse-operator -n clickhouse &>/dev/null; then
+    echo "==> ClickHouse Operator already installed, upgrading..."
+    helm upgrade clickhouse-operator altinity/altinity-clickhouse-operator \\\\
+        --version 0.25.5 --namespace clickhouse --wait --timeout 5m
+else
+    helm install clickhouse-operator altinity/altinity-clickhouse-operator \\\\
+        --version 0.25.5 --namespace clickhouse --create-namespace --wait --timeout 5m
+fi
+
+echo "==> Waiting for ClickHouse Operator CRDs..."
+TIMEOUT=120
+ELAPSED=0
+while [ $ELAPSED -lt $TIMEOUT ]; do
+    if kubectl get crd clickhouseinstallations.clickhouse.altinity.com &>/dev/null; then
+        echo "==> ClickHouse CRDs are ready!"
+        break
+    fi
+    sleep 5
+    ELAPSED=$((ELAPSED + 5))
+done
+kubectl get pods -n clickhouse
+echo "==> ClickHouse Operator installation complete!"
+
+# =============================================================================
+# MONITORING STACK (kube-prometheus-stack)
+# =============================================================================
+echo "==> Installing kube-prometheus-stack..."
+
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+if helm status monitoring -n monitoring &>/dev/null; then
+    echo "==> Monitoring stack already installed, upgrading..."
+    helm upgrade monitoring prometheus-community/kube-prometheus-stack \\\\
+        --namespace monitoring \\\\
+        --version 65.1.1 \\\\
+        --set prometheus.prometheusSpec.nodeSelector.role=general \\\\
+        --set grafana.nodeSelector.role=general \\\\
+        --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \\\\
+        --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \\\\
+        --set prometheus.prometheusSpec.retention=10d \\\\
+        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=gp2 \\\\
+        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=20Gi \\\\
+        --set grafana.persistence.enabled=true \\\\
+        --set grafana.persistence.storageClassName=gp2 \\\\
+        --set grafana.persistence.size=2Gi \\\\
+        --set grafana.adminPassword="Prod_Grafana_Pass123!" \\\\
+        --set alertmanager.enabled=false \\\\
+        --set nodeExporter.enabled=true \\\\
+        --wait --timeout 10m
+else
+    helm install monitoring prometheus-community/kube-prometheus-stack \\\\
+        --namespace monitoring --create-namespace \\\\
+        --version 65.1.1 \\\\
+        --set prometheus.prometheusSpec.nodeSelector.role=general \\\\
+        --set grafana.nodeSelector.role=general \\\\
+        --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \\\\
+        --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \\\\
+        --set prometheus.prometheusSpec.retention=10d \\\\
+        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=gp2 \\\\
+        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=20Gi \\\\
+        --set grafana.persistence.enabled=true \\\\
+        --set grafana.persistence.storageClassName=gp2 \\\\
+        --set grafana.persistence.size=2Gi \\\\
+        --set grafana.adminPassword="Prod_Grafana_Pass123!" \\\\
+        --set alertmanager.enabled=false \\\\
+        --set nodeExporter.enabled=true \\\\
+        --wait --timeout 10m
+fi
+
+echo "==> Waiting for monitoring pods..."
+kubectl wait --for=condition=available --timeout=300s deployment/monitoring-grafana -n monitoring || true
+kubectl wait --for=condition=available --timeout=300s deployment/monitoring-kube-state-metrics -n monitoring || true
+
+echo "==> Monitoring pods:"
+kubectl get pods -n monitoring
+echo "==> Monitoring stack installation complete!"
+"""
+
+
     def _build_argocd_install_script(
         self,
         argocd_config: ArgoCDAddonResolved,
@@ -600,6 +762,10 @@ echo "==> Milvus Operator installation complete!"
         )
 
         script_parts.append(self._build_storage_and_nodepools_script(cluster_name))
+
+        script_parts.append(
+            self._build_monitoring_and_data_pipeline_script(cluster_name)
+        )
 
         # Add ArgoCD installation if enabled
         if argocd_config and argocd_config.enabled:

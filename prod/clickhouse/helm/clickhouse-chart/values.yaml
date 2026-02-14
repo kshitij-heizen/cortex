@@ -1,0 +1,48 @@
+clusterName: cluster01
+
+clickhouse:
+  image: altinity/clickhouse-server:25.3.6.10034.altinitystable
+  shardsCount: 1
+  replicasCount: 2
+  storage:
+    size: 100Gi
+    storageClassName: clickhouse-storage
+  resources: {}
+  nodeSelector:
+    role: clickhouse
+  tolerations:
+    - key: workload
+      value: clickhouse
+      effect: NoSchedule
+
+users:
+  defaultPasswordSha256: "73bb8a3438b824e24f3a5cab7bf0f48ddd3cff6ede677ca0087b824a8e29a36a"
+  adminPasswordSha256: "4c6d7299d9505f1aef715179d27e5ec2af1c92b26f76e78598fc7dd397dbf2b0"
+
+keeper:
+  replicasCount: 3
+  image: clickhouse/clickhouse-keeper:latest
+  storage:
+    size: 10Gi
+    storageClassName: clickhouse-storage
+  resources:
+    requests:
+      memory: "256M"
+      cpu: "1"
+    limits:
+      memory: "4Gi"
+      cpu: "2"
+  nodeSelector:
+    role: clickhouse
+  tolerations:
+    - key: workload
+      value: clickhouse
+      effect: NoSchedule
+
+ingress:
+  enabled: true
+  ingressClassName: nginx-inc
+  host: clickhouse.usecortex.ai
+
+monitoring:
+  enabled: true
