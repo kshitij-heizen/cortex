@@ -68,6 +68,8 @@ vector:
       nginx.org/proxy-read-timeout: "60s"
       nginx.org/client-max-body-size: "50m"
       cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.org/redirect-to-https: "false"
+      
 
   resources:
     requests:
