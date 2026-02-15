@@ -59,15 +59,10 @@ vector:
             pathType: Prefix
             port:
               number: 8686
-    tls:
-      - hosts:
-          - vector.usecortex.opengig.work
-        secretName: vector-tls
     annotations:
       nginx.org/proxy-connect-timeout: "60s"
       nginx.org/proxy-read-timeout: "60s"
       nginx.org/client-max-body-size: "50m"
-      cert-manager.io/cluster-issuer: "letsencrypt-prod"
       nginx.org/redirect-to-https: "false"
       
 

@@ -6,14 +6,9 @@ metadata:
     nginx.org/proxy-read-timeout: "300s"
     nginx.org/proxy-send-timeout: "300s"
     nginx.org/client-max-body-size: "100m"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.org/redirect-to-https: "false"
 spec:
   ingressClassName: {{ .Values.ingressClassName }}
-  tls:
-    - hosts:
-        - {{ .Values.grafana.host }}
-      secretName: grafana-tls
   rules:
   - host: {{ .Values.grafana.host }}
     http:

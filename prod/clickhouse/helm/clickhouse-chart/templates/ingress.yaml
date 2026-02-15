@@ -6,15 +6,10 @@ metadata:
   annotations:
     nginx.org/proxy-connect-timeout: "60s"
     nginx.org/proxy-read-timeout: "60s"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.org/redirect-to-https: "false"
 
 spec:
   ingressClassName: {{ .Values.ingress.ingressClassName }}
-  tls:
-    - hosts:
-        - {{ .Values.ingress.host }}
-      secretName: clickhouse-tls
   rules:
   - host: {{ .Values.ingress.host }}
     http:
