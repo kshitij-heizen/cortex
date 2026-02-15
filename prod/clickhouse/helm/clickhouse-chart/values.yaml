@@ -16,12 +16,13 @@ clickhouse:
       effect: NoSchedule
 
 users:
+  defaultPassword: "gdfsgrt3t2234fd"
   defaultPasswordSha256: "73bb8a3438b824e24f3a5cab7bf0f48ddd3cff6ede677ca0087b824a8e29a36a"
   adminPasswordSha256: "4c6d7299d9505f1aef715179d27e5ec2af1c92b26f76e78598fc7dd397dbf2b0"
 
 keeper:
   replicasCount: 3
-  image: clickhouse/clickhouse-keeper:latest
+  image: clickhouse/clickhouse-keeper:25.3.6
   storage:
     size: 10Gi
     storageClassName: clickhouse-storage

@@ -24,6 +24,8 @@ spec:
       selfHeal: true
     syncOptions:
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+      - CreateNamespace=true
   ignoreDifferences:
     - group: ""
       kind: Service
