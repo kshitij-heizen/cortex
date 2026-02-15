@@ -1,0 +1,67 @@
+organization: cortex
+
+tenantId: tenant-1
+
+namespace: falkordb-cortex
+
+clusterName: falkordb
+
+auth:
+  useSharedSecret: false    # <-- THIS IS THE ONLY CHANGE
+
+ingress:
+  enabled: false
+
+stunnel:
+  image: dweomer/stunnel:latest
+  replicas: 2  
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
+
+dataNode:
+  replicas: 2
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "4Gi"    
+    limits:
+      cpu: "1500m"
+      memory: "12Gi"
+  nodeSelector:
+    role: memory-db-large-scalable
+  tolerations:
+    - key: "workload"
+      operator: "Equal"
+      value: "database-large-scalable"
+      effect: "NoSchedule"
+  storage:
+    storageClassName: gp3
+    size: 100Gi
+
+sentinelNode:
+  replicas: 3
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  nodeSelector:
+    role: general
+  storage:
+    storageClassName: gp3
+    size: 10Gi
+
+monitoring:
+  enabled: true
+  redisExporter:
+    image: oliver006/redis_exporter:v1.62.0
+  statsExporter:
+    image: python:3.11-slim
+    scrapeInterval: 60

@@ -1,0 +1,297 @@
+# FalkorDB Grafana Dashboard ConfigMap
+# 
+# This ConfigMap auto-provisions dashboards into Grafana when the sidecar is enabled.
+# 
+# Prerequisites:
+#   1. Enable Grafana sidecar in monitoring-values.yaml
+#   2. Apply this ConfigMap: kubectl apply -f falkordb-dashboard-configmap.yaml
+#
+# To use your existing dashboard JSON:
+#   1. Export dashboard from Grafana (Share > Export > Save to file)
+#   2. Replace the JSON below with your exported JSON
+#   3. Re-apply this ConfigMap
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falkordb-grafana-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"  # This label is required for sidecar to pick it up
+data:
+  falkordb-dashboard.json: |
+    {
+      "annotations": {
+        "list": []
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null}
+                ]
+              },
+              "unit": "bytes"
+            }
+          },
+          "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+          "id": 1,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "title": "Memory Used",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "redis_memory_used_bytes{namespace=~\"$namespace\"}",
+              "legendFormat": "{{namespace}}"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null}
+                ]
+              }
+            }
+          },
+          "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+          "id": 2,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          },
+          "title": "Connected Clients",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "redis_connected_clients{namespace=~\"$namespace\"}",
+              "legendFormat": "{{namespace}}"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null}
+                ]
+              },
+              "unit": "ops"
+            }
+          },
+          "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+          "id": 3,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area"
+          },
+          "title": "Commands/sec",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "rate(redis_commands_processed_total{namespace=~\"$namespace\"}[5m])",
+              "legendFormat": "{{namespace}}"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"color": "green", "value": null}
+                ]
+              }
+            }
+          },
+          "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
+          "id": 4,
+          "title": "Uptime (days)",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "redis_uptime_in_seconds{namespace=~\"$namespace\"} / 86400",
+              "legendFormat": "{{namespace}}"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+          "id": 5,
+          "title": "Memory Usage Over Time",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "redis_memory_used_bytes{namespace=~\"$namespace\"}",
+              "legendFormat": "{{namespace}}"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+          "id": 6,
+          "title": "Commands Per Second",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "rate(redis_commands_processed_total{namespace=~\"$namespace\"}[5m])",
+              "legendFormat": "{{namespace}}"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {"h": 6, "w": 8, "x": 0, "y": 14},
+          "id": 7,
+          "title": "Graph Nodes Total",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "falkordb_graph_nodes_total{namespace=~\"$namespace\"}",
+              "legendFormat": "{{namespace}} - {{graph}}"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {"h": 6, "w": 8, "x": 8, "y": 14},
+          "id": 8,
+          "title": "Graph Edges Total",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "falkordb_graph_edges_total{namespace=~\"$namespace\"}",
+              "legendFormat": "{{namespace}} - {{graph}}"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "gridPos": {"h": 6, "w": 8, "x": 16, "y": 14},
+          "id": 9,
+          "title": "Cache Hit Ratio",
+          "type": "gauge",
+          "targets": [
+            {
+              "expr": "redis_keyspace_hits_total{namespace=~\"$namespace\"} / (redis_keyspace_hits_total{namespace=~\"$namespace\"} + redis_keyspace_misses_total{namespace=~\"$namespace\"})",
+              "legendFormat": "{{namespace}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "max": 1,
+              "min": 0,
+              "unit": "percentunit"
+            }
+          }
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "style": "dark",
+      "tags": ["falkordb", "redis", "database"],
+      "templating": {
+        "list": [
+          {
+            "current": {},
+            "hide": 0,
+            "includeAll": true,
+            "label": "Namespace",
+            "multi": true,
+            "name": "namespace",
+            "options": [],
+            "query": "label_values(redis_up, namespace)",
+            "refresh": 2,
+            "regex": "falkordb-.*",
+            "type": "query"
+          },
+          {
+            "current": {},
+            "hide": 0,
+            "includeAll": false,
+            "label": "Datasource",
+            "name": "datasource",
+            "options": [],
+            "query": "prometheus",
+            "type": "datasource"
+          }
+        ]
+      },
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "title": "FalkorDB Multi-Tenant Dashboard",
+      "uid": "falkordb-multi-tenant",
+      "version": 1
+    }

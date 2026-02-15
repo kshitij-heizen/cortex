@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: attu
+  namespace: milvus-cortexai
+  labels:
+    app: attu
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: attu
+  template:
+    metadata:
+      labels:
+        app: attu
+    spec:
+      containers:
+        - name: attu
+          image: zilliz/attu:v2.4
+          ports:
+            - containerPort: 3000
+          env:
+            - name: MILVUS_URL
+              value: "cortexai-milvus.milvus-cortexai.svc.cluster.local:19530"
+            - name: ATTU_LOG_LEVEL
+              value: "info"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: attu
+  namespace: milvus-cortexai
+  labels:
+    app: attu
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      name: http
+  selector:
+    app: attu
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: attu-ingress
+  namespace: milvus-cortexai
+  annotations:
+    # Using pre-provisioned wildcard cert (no cert-manager annotation needed)
+    nginx.org/proxy-connect-timeout: "60s"
+    nginx.org/proxy-read-timeout: "300s"
+    nginx.org/proxy-send-timeout: "300s"
+    nginx.org/client-max-body-size: "100m"
+spec:
+  ingressClassName: nginx-inc
+  tls:
+    - hosts:
+        - cortexai-attu.milvusdb.usecortex.ai
+      secretName: milvus-wildcard-tls
+  rules:
+    - host: cortexai-attu.milvusdb.usecortex.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: attu
+                port:
+                  number: 3000
