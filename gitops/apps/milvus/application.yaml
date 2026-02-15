@@ -27,7 +27,8 @@ spec:
       - ServerSideApply=true
       - RespectIgnoreDifferences=true
   ignoreDifferences:
-      - group: milvus.io
-        kind: Milvus
-        managedFieldsManagers:
-          - milvus-operator
+    - group: milvus.io
+      kind: Milvus
+      jqPathExpressions:
+        - .spec.components
+        - .spec.dependencies
