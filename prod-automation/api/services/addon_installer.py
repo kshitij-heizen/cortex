@@ -584,6 +584,50 @@ kubectl wait --for=condition=available --timeout=300s deployment/monitoring-kube
 echo "==> Monitoring pods:"
 kubectl get pods -n monitoring
 echo "==> Monitoring stack installation complete!"
+
+# =============================================================================
+# CERT-MANAGER
+# =============================================================================
+echo "==> Installing cert-manager..."
+
+helm repo add jetstack https://charts.jetstack.io
+helm repo update jetstack
+
+if helm status cert-manager -n cert-manager &>/dev/null; then
+    echo "==> cert-manager already installed, upgrading..."
+    helm upgrade cert-manager jetstack/cert-manager \\
+        --namespace cert-manager \\
+        --set crds.enabled=true \\
+        --wait --timeout 5m
+else
+    helm install cert-manager jetstack/cert-manager \\
+        --namespace cert-manager --create-namespace \\
+        --set crds.enabled=true \\
+        --wait --timeout 5m
+fi
+
+echo "==> Waiting for cert-manager webhook..."
+kubectl wait --for=condition=available --timeout=120s deployment/cert-manager-webhook -n cert-manager
+
+echo "==> Creating Let's Encrypt ClusterIssuer..."
+cat <<'ISSUER_EOF' | kubectl apply -f -
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: kshitij@heizen.tech
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx-inc
+ISSUER_EOF
+
+echo "==> cert-manager installation complete!"
 """
 
 

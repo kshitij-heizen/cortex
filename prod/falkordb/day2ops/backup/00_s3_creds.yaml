@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: Secret
-metadata:
-  name: s3-backup-credentials
-  namespace: falkordb
-type: Opaque
-stringData:
-  accessKeyId: "YOUR_AWS_ACCESS_KEY_ID" # TODO: add secrets before applying - get from AWS IAM
-  secretAccessKey: "YOUR_AWS_SECRET_ACCESS_KEY" # TODO: add secrets before applying - get from AWS IAM
