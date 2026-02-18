@@ -32,7 +32,7 @@ spec:
             spec:
               listeners:
                 - name: tls-passthrough
-                  port: 6380
+                  port: 443
                   protocol: TLS_PASSTHROUGH
 
           service:
