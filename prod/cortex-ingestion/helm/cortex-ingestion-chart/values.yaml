@@ -1,0 +1,92 @@
+namespace: cortex-ingestion
+
+image:
+  repository: 746038690600.dkr.ecr.us-east-1.amazonaws.com/cortex-ingestion
+  tag: f628c80074428cad2bbe40b287cba5d8211cb639
+  pullPolicy: Always
+
+replicas: 2
+
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: "500m"
+    ephemeral-storage: "2Gi"
+  limits:
+    memory: "4Gi"
+    cpu: "2000m"
+    ephemeral-storage: "5Gi"
+
+nodeSelector:
+  role: general
+
+serviceAccount:
+  name: cortex-ingestion
+  irsaRoleArn: ""
+
+config:
+  ENV: "prod"
+  LOG_LEVEL: "INFO"
+  AWS_REGION: "us-east-1"
+  ORG: "cortexai"
+
+  FALKORDB_HOST: "falkordb-cortex-tenant-1-falkordb-falkordb.falkordb-cortex.svc.cluster.local"
+  FALKORDB_PORT: "6379"
+  DB_CONNECTIONS: "80"
+  FALKOR_ORG_SPECIFIC_CLUSTER: "true"
+
+  KAFKA_BOOTSTRAP_SERVERS: ""
+  KAFKA_TOPIC: "document-ingestion"
+  KAFKA_GROUP_ID: "ingestion-service-group"
+  KAFKA_SECURITY_PROTOCOL: "SASL_SSL"
+  KAFKA_SASL_MECHANISM: "AWS_MSK_IAM"
+  KAFKA_AUTO_OFFSET_RESET: "earliest"
+
+  STORAGE_BACKEND: "s3"
+  MINIO_ENDPOINT: "localhost:9000"
+  MINIO_SECURE: "false"
+  MINIO_BUCKET: "documents"
+
+  ENABLE_VESPA: "false"
+  VESPA_CONFIGSERVER_URL: ""
+  VESPA_TENANT: ""
+  VESPA_APP_NAME: ""
+
+  ENABLE_MILVUS: "true"
+  MILVUS_URI: "cortexai-milvus.milvus-cortexai.svc.cluster.local:19530"
+  MILVUS_DEFAULT_PARTITIONS: "64"
+
+  VECTOR_PUSH_URL: "https://vector.usecortex.opengig.work/"
+
+  CORTEX_API_KEYS_TABLE_NAME: "cortex_user_api_keys_prod"
+
+ingress:
+  enabled: true
+  className: nginx-inc
+  hostname: cortex-ingestion.usecortex.opengig.work
+  tls:
+    enabled: true
+    secretName: cortex-ingestion-tls
+    issuerName: letsencrypt-prod
+  annotations:
+    nginx.org/proxy-read-timeout: "600s"
+    nginx.org/proxy-send-timeout: "600s"
+    nginx.org/proxy-connect-timeout: "60s"
+    nginx.org/client-max-body-size: "500m"
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 15
+  targetCPUUtilization: 70
+  targetMemoryUtilization: 80
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+monitoring:
+  enabled: true
+  port: http
+  path: /metrics
+  interval: 30s

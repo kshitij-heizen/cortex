@@ -1,0 +1,100 @@
+namespace: cortex-app
+
+image:
+  repository: 746038690600.dkr.ecr.us-east-1.amazonaws.com/cortex-app
+  tag: ead91f917d4093fce112866afa71d7a5052817ce
+  pullPolicy: Always
+
+replicas: 3
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "2Gi"
+    cpu: "1000m"
+
+nodeSelector:
+  role: general
+
+serviceAccount:
+  name: cortex-app
+  # Set to IAM role ARN when IRSA is configured
+  irsaRoleArn: ""
+
+config:
+  ENV: "prod"
+  AWS_REGION: "us-east-1"
+  IS_INGESTION: "false"
+  ORG: "cortexai"
+  FERN_SDK_CONVENTION: "snake"
+
+  FALKORDB_HOST: "falkordb-cortex-tenant-1-falkordb-falkordb.falkordb-cortex.svc.cluster.local"
+  FALKORDB_PORT: "6379"
+  DB_CONNECTIONS: "80"
+  FALKOR_ORG_SPECIFIC_CLUSTER: "true"
+
+  ENABLE_MILVUS: "true"
+  MILVUS_URI: "cortexai-milvus.milvus-cortexai.svc.cluster.local:19530"
+  MILVUS_DEFAULT_PARTITIONS: "64"
+
+  ENABLE_VESPA: "false"
+  VESPA_CONTAINER_URL: ""
+
+  STORAGE_BACKEND: "s3"
+  MINIO_ENDPOINT: "localhost:9000"
+  MINIO_SECURE: "false"
+  MINIO_BUCKET: "documents"
+
+  KAFKA_BOOTSTRAP_SERVERS: ""
+  KAFKA_TOPIC: "document-ingestion"
+  KAFKA_GROUP_ID: "ingestion-service-group"
+  KAFKA_SECURITY_PROTOCOL: "SASL_SSL"
+  KAFKA_SASL_MECHANISM: "AWS_MSK_IAM"
+  KAFKA_AUTO_OFFSET_RESET: "earliest"
+  KAFKA_TOPIC_NAMESPACE: "cortex"
+  KAFKA_DOCUMENT_TOPIC_SUFFIX: "document-ingestion"
+  KAFKA_CHUNK_TOPIC_SUFFIX: "chunk-ingestion"
+  KAFKA_FAILED_TOPIC: "cortex-ingestion-failed"
+  KAFKA_DEFAULT_PARTITIONS: "3"
+  KAFKA_REPLICATION_FACTOR: "1"
+
+  NEXTAUTH_TABLE_NAME: "cortex-users"
+  CORTEX_API_KEYS_TABLE_NAME: "cortex_user_api_keys_prod"
+  CORTEX_LOCAL_SOURCES_BUCKET_NAME: "cortex-local-sources"
+  TENANT_ID_MAPPING_TABLE_NAME: "tenant-id-mapping"
+
+  MEMORY_SERVICE_URL: "http://cortex-ingestion.cortex-ingestion.svc.cluster.local"
+  VECTOR_PUSH_URL: "https://vector.usecortex.opengig.work/"
+
+ingress:
+  enabled: true
+  className: nginx-inc
+  hostname: cortex-app.usecortex.opengig.work
+  tls:
+    enabled: true
+    secretName: cortex-app-tls
+    issuerName: letsencrypt-prod
+  annotations:
+    nginx.org/proxy-read-timeout: "300s"
+    nginx.org/proxy-send-timeout: "300s"
+    nginx.org/proxy-connect-timeout: "60s"
+    nginx.org/client-max-body-size: "100m"
+
+hpa:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilization: 70
+  targetMemoryUtilization: 80
+
+pdb:
+  enabled: true
+  minAvailable: 2
+
+monitoring:
+  enabled: true
+  port: http
+  path: /metrics
+  interval: 30s

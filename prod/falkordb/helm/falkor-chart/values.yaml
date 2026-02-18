@@ -11,8 +11,8 @@ auth:
 
 ingress:
   enabled: true
-  useTransportServer: true 
   useWildcardCert: false
+  useTransportServer: true
   className: nginx-inc
   domain: usecortex.opengig.work
   hostname: falkordb-cortex
