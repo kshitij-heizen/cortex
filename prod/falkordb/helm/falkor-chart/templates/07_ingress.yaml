@@ -1,5 +1,6 @@
 {{- if .Values.ingress.enabled }}
 {{- if not .Values.ingress.useWildcardCert }}
+{{- if not .Values.ingress.useTransportServer }}
 {{- $fullName := printf "%s-%s-%s" .Values.clusterName .Values.organization .Values.tenantId }}
 {{- $hostname := printf "%s.%s" .Values.ingress.hostname .Values.ingress.domain }}
 {{- $certSecretName := printf "%s-tls-cert" $fullName }}
@@ -30,5 +31,6 @@ spec:
             name: {{ $stunnelService }}
             port:
               number: 6380
+{{- end }}
 {{- end }}
 {{- end }}

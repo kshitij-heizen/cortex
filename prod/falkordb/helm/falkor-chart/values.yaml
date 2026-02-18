@@ -11,6 +11,7 @@ auth:
 
 ingress:
   enabled: true
+  useTransportServer: true 
   useWildcardCert: false
   className: nginx-inc
   domain: usecortex.opengig.work
