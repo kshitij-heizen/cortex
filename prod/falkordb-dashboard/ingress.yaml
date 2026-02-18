@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: falkordb-dashboard
+  namespace: falkordb-dashboard
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    nginx.org/redirect-to-https: "false"
+    nginx.org/proxy-read-timeout: "300s"
+    nginx.org/proxy-send-timeout: "300s"
+spec:
+  ingressClassName: nginx-inc
+  tls:
+    - hosts:
+        - falkordb-dashboard.usecortex.opengig.work
+      secretName: falkordb-dashboard-tls
+  rules:
+    - host: falkordb-dashboard.usecortex.opengig.work
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: falkordb-dashboard
+                port:
+                  number: 3000

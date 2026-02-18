@@ -1,0 +1,24 @@
+# https://kubernetes.io/docs/concepts/services-networking/ingress/#the-ingress-resource
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: falkordb-dashboard
+  namespace: falkordb-dashboard
+spec:
+  ingressClassName: nginx-inc
+  tls:
+  - hosts:
+    - dashboard.falkordb.usecortex.ai
+    secretName: falkordb-wildcard-tls
+  rules:
+  - host: dashboard.falkordb.usecortex.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: falkordb-dashboard
+            port:
+              number: 3000

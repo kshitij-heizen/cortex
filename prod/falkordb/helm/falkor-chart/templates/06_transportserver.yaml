@@ -1,0 +1,23 @@
+{{- if .Values.ingress.enabled }}
+{{- $fullName := printf "%s-%s-%s" .Values.clusterName .Values.organization .Values.tenantId }}
+{{- $hostname := printf "%s.%s" .Values.ingress.hostname .Values.ingress.domain }}
+---
+apiVersion: k8s.nginx.org/v1
+kind: TransportServer
+metadata:
+  name: {{ $fullName }}-ts
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ $fullName }}
+spec:
+  listener:
+    name: tls-passthrough
+    protocol: TLS_PASSTHROUGH
+  host: {{ $hostname }}
+  upstreams:
+    - name: stunnel
+      service: {{ $fullName }}-stunnel
+      port: 6380
+  action:
+    pass: stunnel
+{{- end }}

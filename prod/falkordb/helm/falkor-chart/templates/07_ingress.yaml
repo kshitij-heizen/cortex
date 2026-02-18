@@ -1,0 +1,34 @@
+{{- if .Values.ingress.enabled }}
+{{- if not .Values.ingress.useWildcardCert }}
+{{- $fullName := printf "%s-%s-%s" .Values.clusterName .Values.organization .Values.tenantId }}
+{{- $hostname := printf "%s.%s" .Values.ingress.hostname .Values.ingress.domain }}
+{{- $certSecretName := printf "%s-tls-cert" $fullName }}
+{{- $stunnelService := printf "%s-stunnel" $fullName }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}-ingress
+  namespace: {{ .Values.namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "TCP"
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+  - hosts:
+    - {{ $hostname }}
+    secretName: {{ $certSecretName }}
+  rules:
+  - host: {{ $hostname }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ $stunnelService }}
+            port:
+              number: 6380
+{{- end }}
+{{- end }}

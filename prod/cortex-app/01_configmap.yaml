@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cortex-app-config
+  namespace: cortex-app
+  labels:
+    app.kubernetes.io/name: cortex-app
+    app.kubernetes.io/component: config
+data:
+  ENV: "prod"
+  AWS_REGION: "us-east-1"
+  IS_INGESTION: "false"
+  ORG: "cortexai"
+  FERN_SDK_CONVENTION: "snake"
+
+  FALKORDB_HOST: "a01124789164647a89957dfc083d468d-d04bceb9723de769.elb.us-east-1.amazonaws.com"
+  FALKORDB_PORT: "6379"
+  DB_CONNECTIONS: "80"
+  FALKOR_ORG_SPECIFIC_CLUSTER: "true"
+
+  ENABLE_MILVUS: "true"
+  MILVUS_URI: "https://cortex-common.milvusdb.usecortex.ai:443"
+  MILVUS_DEFAULT_PARTITIONS: "64"
+
+  ENABLE_VESPA: "true"
+  VESPA_CONTAINER_URL: "https://configserver.usecortex.ai"
+
+  STORAGE_BACKEND: "s3"
+  MINIO_ENDPOINT: "localhost:9000"
+  MINIO_SECURE: "false"
+  MINIO_BUCKET: "documents"
+
+  KAFKA_BOOTSTRAP_SERVERS: "boot-qlghp0x1.c1.kafka-serverless.us-east-1.amazonaws.com:9098"
+  KAFKA_TOPIC: "document-ingestion"
+  KAFKA_GROUP_ID: "ingestion-service-group"
+  KAFKA_SECURITY_PROTOCOL: "SASL_SSL"
+  KAFKA_SASL_MECHANISM: "AWS_MSK_IAM"
+  KAFKA_AUTO_OFFSET_RESET: "earliest"
+  KAFKA_TOPIC_NAMESPACE: "cortex"
+  KAFKA_DOCUMENT_TOPIC_SUFFIX: "document-ingestion"
+  KAFKA_CHUNK_TOPIC_SUFFIX: "chunk-ingestion"
+  KAFKA_FAILED_TOPIC: "cortex-ingestion-failed"
+  KAFKA_DEFAULT_PARTITIONS: "3"
+  KAFKA_REPLICATION_FACTOR: "1"
+
+  NEXTAUTH_TABLE_NAME: "cortex-users"
+  CORTEX_API_KEYS_TABLE_NAME: "cortex_user_api_keys_prod"
+  CORTEX_LOCAL_SOURCES_BUCKET_NAME: "cortex-local-sources"
+  TENANT_ID_MAPPING_TABLE_NAME: "tenant-id-mapping"
+
+  MEMORY_SERVICE_URL: "https://ingestion.usecortex.ai"
+  VECTOR_PUSH_URL: "https://vector.usecortex.ai/"
