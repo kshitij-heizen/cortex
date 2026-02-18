@@ -13,10 +13,10 @@ spec:
   ingressClassName: nginx-inc
   tls:
     - hosts:
-        - falkordb-dashboard.usecortex.opengig.work
+        - dashboard.falkordb.usecortex.opengig.work
       secretName: falkordb-dashboard-tls
   rules:
-    - host: falkordb-dashboard.usecortex.opengig.work
+    - host: dashboard.falkordb.usecortex.opengig.work
       http:
         paths:
           - path: /

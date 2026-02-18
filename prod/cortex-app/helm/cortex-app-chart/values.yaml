@@ -2,7 +2,7 @@ namespace: cortex-app
 
 image:
   repository: 746038690600.dkr.ecr.us-east-1.amazonaws.com/cortex-app
-  tag: ead91f917d4093fce112866afa71d7a5052817ce
+  tag: latest
   pullPolicy: Always
 
 replicas: 3
@@ -36,7 +36,7 @@ config:
   FALKOR_ORG_SPECIFIC_CLUSTER: "true"
 
   ENABLE_MILVUS: "true"
-  MILVUS_URI: "cortexai-milvus.milvus-cortexai.svc.cluster.local:19530"
+  MILVUS_URI: "http://cortexai-milvus.milvus-cortexai.svc.cluster.local:19530"
   MILVUS_DEFAULT_PARTITIONS: "64"
 
   ENABLE_VESPA: "false"

@@ -1,7 +1,7 @@
 {{- if .Values.ingress.enabled }}
 {{- $fullName := printf "%s-%s-%s" .Values.clusterName .Values.organization .Values.tenantId }}
 {{- $serviceName := printf "%s-falkordb-falkordb" $fullName }}
-{{- $hostname := printf "%s.%s" .Values.ingress.hostname .Values.ingress.domain }}
+{{- $hostname := printf "%s-%s.%s" .Values.organization .Values.tenantId .Values.ingress.domain }}
 {{- $certSecretName := printf "%s-tls-cert" $fullName }}
 ---
 # Stunnel Deployment - TLS proxy for Redis protocol

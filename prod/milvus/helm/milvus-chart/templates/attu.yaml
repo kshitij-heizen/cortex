@@ -5,7 +5,7 @@ metadata:
   name: {{ .Values.org_id }}-attu
   namespace: {{ include "milvus-tenant.namespace" . }}
   labels:
-    {{- include "milvus-tenant.labels" . | nindent 4 }}
+{{ include "milvus-tenant.labels" . | nindent 4 }}
     app: attu
 spec:
   replicas: {{ .Values.attu.replicas }}
@@ -19,14 +19,14 @@ spec:
         app: attu
         org_id: {{ .Values.org_id }}
     spec:
-      {{- if .Values.nodeSelector }}
+{{- if .Values.nodeSelector }}
       nodeSelector:
-        {{- toYaml .Values.nodeSelector | nindent 8 }}
-      {{- end }}
-      {{- if .Values.tolerations }}
+{{ toYaml .Values.nodeSelector | nindent 8 }}
+{{- end }}
+{{- if .Values.tolerations }}
       tolerations:
-        {{- toYaml .Values.tolerations | nindent 8 }}
-      {{- end }}
+{{ toYaml .Values.tolerations | nindent 8 }}
+{{- end }}
       containers:
         - name: attu
           image: {{ .Values.attu.image.repository }}:{{ .Values.attu.image.tag }}
@@ -38,7 +38,7 @@ spec:
             - name: ATTU_LOG_LEVEL
               value: {{ .Values.attu.logLevel | quote }}
           resources:
-            {{- toYaml .Values.attu.resources | nindent 12 }}
+{{ toYaml .Values.attu.resources | nindent 12 }}
 ---
 apiVersion: v1
 kind: Service
@@ -46,7 +46,7 @@ metadata:
   name: {{ .Values.org_id }}-attu
   namespace: {{ include "milvus-tenant.namespace" . }}
   labels:
-    {{- include "milvus-tenant.labels" . | nindent 4 }}
+{{ include "milvus-tenant.labels" . | nindent 4 }}
     app: attu
 spec:
   type: ClusterIP
@@ -66,21 +66,24 @@ metadata:
   name: {{ .Values.org_id }}-attu-ingress
   namespace: {{ include "milvus-tenant.namespace" . }}
   labels:
-    {{- include "milvus-tenant.labels" . | nindent 4 }}
+{{ include "milvus-tenant.labels" . | nindent 4 }}
   annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    nginx.org/redirect-to-https: "false"
     nginx.org/proxy-connect-timeout: {{ .Values.ingress.attu.proxyConnectTimeout | quote }}
     nginx.org/proxy-read-timeout: {{ .Values.ingress.attu.proxyReadTimeout | quote }}
     nginx.org/proxy-send-timeout: {{ .Values.ingress.attu.proxySendTimeout | quote }}
     nginx.org/client-max-body-size: {{ .Values.ingress.attu.clientMaxBodySize | quote }}
-    {{- with .Values.ingress.attu.annotations }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+{{- with .Values.ingress.attu.annotations }}
+{{ toYaml . | nindent 4 }}
+{{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   tls:
     - hosts:
         - {{ include "milvus-tenant.attuHost" . }}
-      secretName: {{ .Values.ingress.tlsSecretName | default (include "milvus-tenant.tlsSecretName" .) }}
+      secretName: {{ .Values.org_id }}-attu-tls
   rules:
     - host: {{ include "milvus-tenant.attuHost" . }}
       http:

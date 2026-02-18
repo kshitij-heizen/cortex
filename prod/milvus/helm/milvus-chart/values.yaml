@@ -144,13 +144,41 @@ ingress:
   tlsSecretName: ""
   grpc:
     enabled: false
+    proxyConnectTimeout: "60s"
+    proxyReadTimeout: "300s"
+    proxySendTimeout: "300s"
+    annotations: {}
   webui:
     enabled: false
+    proxyConnectTimeout: "60s"
+    proxyReadTimeout: "300s"
+    proxySendTimeout: "300s"
+    clientMaxBodySize: "100m"
+    annotations: {}
   attu:
-    enabled: false
+    enabled: true
+    proxyConnectTimeout: "60s"
+    proxyReadTimeout: "300s"
+    proxySendTimeout: "300s"
+    clientMaxBodySize: "100m"
+    annotations: {}
 
 attu:
-  enabled: false
+  enabled: true
+  image:
+    repository: zilliz/attu
+    tag: v2.4
+  replicas: 1
+  logLevel: info
+  nodeSelector:
+    role: general
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
 
 certificate:
   create: false

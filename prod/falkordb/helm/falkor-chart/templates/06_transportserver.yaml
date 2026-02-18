@@ -1,6 +1,6 @@
 {{- if .Values.ingress.enabled }}
 {{- $fullName := printf "%s-%s-%s" .Values.clusterName .Values.organization .Values.tenantId }}
-{{- $hostname := printf "%s.%s" .Values.ingress.hostname .Values.ingress.domain }}
+{{- $hostname := printf "%s-%s.%s" .Values.organization .Values.tenantId .Values.ingress.domain }}
 ---
 apiVersion: k8s.nginx.org/v1
 kind: TransportServer

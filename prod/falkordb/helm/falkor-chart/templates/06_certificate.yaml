@@ -1,7 +1,7 @@
 {{- if .Values.ingress.enabled }}
 {{- if not .Values.ingress.useWildcardCert }}
 {{- $fullName := printf "%s-%s-%s" .Values.clusterName .Values.organization .Values.tenantId }}
-{{- $hostname := printf "%s.%s" .Values.ingress.hostname .Values.ingress.domain }}
+{{- $hostname := printf "%s-%s.%s" .Values.organization .Values.tenantId .Values.ingress.domain }}
 {{- $certSecretName := printf "%s-tls-cert" $fullName }}
 ---
 apiVersion: cert-manager.io/v1
