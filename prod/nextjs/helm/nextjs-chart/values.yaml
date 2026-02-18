@@ -1,0 +1,72 @@
+namespace: nextjs
+
+image:
+  # Swap this with your actual Next.js image
+  repository: ghcr.io/vercel/next.js/examples-blog-starter
+  tag: latest
+  pullPolicy: Always
+
+replicas: 2
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+nodeSelector:
+  role: general
+
+serviceAccount:
+  name: nextjs
+
+config:
+  # App config
+  NODE_ENV: "production"
+  NEXT_PUBLIC_APP_NAME: "Cortex Dashboard"
+  NEXT_PUBLIC_APP_URL: "https://nextjs.usecortex.opengig.work"
+  NEXT_TELEMETRY_DISABLED: "1"
+  PORT: "3000"
+
+  # Cortex API endpoints
+  NEXT_PUBLIC_CORTEX_API_URL: "https://cortex-app.usecortex.opengig.work"
+  NEXT_PUBLIC_CORTEX_INGESTION_URL: "https://cortex-ingestion.usecortex.opengig.work"
+
+  # FalkorDB Dashboard
+  NEXT_PUBLIC_FALKORDB_DASHBOARD_URL: "https://dashboard.falkordb.usecortex.opengig.work"
+
+  # Milvus Attu
+  NEXT_PUBLIC_MILVUS_ATTU_URL: "https://cortexai-attu.milvusdb.usecortex.opengig.work"
+
+  # Monitoring
+  NEXT_PUBLIC_GRAFANA_URL: "https://grafana-prod.usecortex.opengig.work"
+  NEXT_PUBLIC_PROMETHEUS_URL: "https://prometheus-prod.usecortex.opengig.work"
+
+  # Feature flags
+  NEXT_PUBLIC_ENABLE_MILVUS: "true"
+  NEXT_PUBLIC_ENABLE_FALKORDB: "true"
+  NEXT_PUBLIC_ENABLE_VESPA: "false"
+
+ingress:
+  enabled: true
+  className: nginx-inc
+  hostname: nextjs.usecortex.opengig.work
+  tls:
+    enabled: true
+    secretName: nextjs-tls
+    issuerName: letsencrypt-prod
+  annotations:
+    nginx.org/proxy-read-timeout: "60s"
+    nginx.org/proxy-send-timeout: "60s"
+    nginx.org/proxy-connect-timeout: "10s"
+
+hpa:
+  enabled: false
+
+pdb:
+  enabled: false
+
+monitoring:
+  enabled: false

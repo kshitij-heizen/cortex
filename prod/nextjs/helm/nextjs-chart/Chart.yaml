@@ -1,0 +1,6 @@
+apiVersion: v2
+name: nextjs
+description: Next.js demo dashboard - swap image for production use
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
