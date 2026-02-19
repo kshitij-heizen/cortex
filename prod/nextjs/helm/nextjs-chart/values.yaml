@@ -1,10 +1,9 @@
 namespace: nextjs
 
 image:
-  # Swap this with your actual Next.js image
-  repository: ghcr.io/vercel/next.js/examples-blog-starter
-  tag: latest
-  pullPolicy: Always
+  repository: traefik/whoami
+  tag: v1.11
+  pullPolicy: IfNotPresent
 
 replicas: 2
 

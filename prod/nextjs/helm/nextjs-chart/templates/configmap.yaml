@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: nextjs-demo-config
+  name: nextjs-config
   namespace: {{ .Values.namespace }}
   labels:
     app.kubernetes.io/name: nextjs
