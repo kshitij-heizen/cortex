@@ -90,3 +90,9 @@ monitoring:
   port: http
   path: /metrics
   interval: 30s
+
+externalSecrets:
+  enabled: true
+  storeName: aws-secrets-manager
+  secretKey: /byoc/heizen/cortex-ingestion
+  refreshInterval: 1h

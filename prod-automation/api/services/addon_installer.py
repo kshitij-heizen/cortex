@@ -762,6 +762,49 @@ echo "==> cert-manager installation complete!"
 
         return "\n".join(lines)
 
+    def _build_eso_install_script(self, eso_role_arn: str) -> str:
+        """Build script to install External Secrets Operator."""
+        return f"""
+# =============================================================================
+# EXTERNAL SECRETS OPERATOR
+# =============================================================================
+echo "==> Installing External Secrets Operator..."
+
+helm repo add external-secrets https://charts.external-secrets.io
+helm repo update external-secrets
+
+helm upgrade --install external-secrets external-secrets/external-secrets \\
+    --namespace external-secrets --create-namespace \\
+    --set serviceAccount.annotations."eks\\.amazonaws\\.com/role-arn"="{eso_role_arn}" \\
+    --set nodeSelector.role=general \\
+    --set webhook.nodeSelector.role=general \\
+    --set certController.nodeSelector.role=general \\
+    --wait --timeout 5m
+
+echo "==> Waiting for ESO webhook..."
+kubectl wait --for=condition=available --timeout=120s deployment/external-secrets-webhook -n external-secrets
+
+echo "==> Creating ClusterSecretStore..."
+cat <<'CSS_EOF' | kubectl apply -f -
+apiVersion: external-secrets.io/v1beta1
+kind: ClusterSecretStore
+metadata:
+  name: aws-secrets-manager
+spec:
+  provider:
+    aws:
+      service: SecretsManager
+      region: $REGION
+      auth:
+        jwt:
+          serviceAccountRef:
+            name: external-secrets
+            namespace: external-secrets
+CSS_EOF
+
+echo "==> ESO installation complete!"
+"""
+
     def _build_combined_install_script(
         self,
         cluster_name: str,
@@ -810,6 +853,10 @@ echo "==> cert-manager installation complete!"
         script_parts.append(
             self._build_monitoring_and_data_pipeline_script(cluster_name)
         )
+
+        eso_role_arn = self.outputs.get("eso_role_arn", "")
+        if eso_role_arn:
+            script_parts.append(self._build_eso_install_script(eso_role_arn))
 
         # Add ArgoCD installation if enabled
         if argocd_config and argocd_config.enabled:

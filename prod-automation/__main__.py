@@ -8,6 +8,8 @@ from infra.config import load_customer_config
 from infra.providers import create_customer_aws_provider
 from infra.components.access_node import AccessNode
 
+import json
+
 config = load_customer_config()
 
 aws_provider = create_customer_aws_provider(config)
@@ -43,6 +45,100 @@ eks = EksCluster(
     tags=config.tags,
     opts=pulumi.ResourceOptions(depends_on=[iam]),
 )
+
+
+
+# =============================================================================
+# External Secrets Operator (ESO) - IAM Role (IRSA)
+# =============================================================================
+eso_policy = aws.iam.Policy(
+    f"{config.customer_id}-eso-policy",
+    policy=pulumi.Output.all(config.aws_region).apply(
+        lambda args: json.dumps({
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Effect": "Allow",
+                "Action": [
+                    "secretsmanager:GetSecretValue",
+                    "secretsmanager:DescribeSecret",
+                    "secretsmanager:ListSecrets",
+                ],
+                "Resource": "*",
+            }],
+        })
+    ),
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+eso_role = aws.iam.Role(
+    f"{config.customer_id}-eso-role",
+    assume_role_policy=pulumi.Output.all(
+        eks.oidc_provider_arn, eks.oidc_provider_url
+    ).apply(
+        lambda args: json.dumps({
+            "Version": "2012-10-17",
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": {"Federated": args[0]},
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                    "StringEquals": {
+                        f"{args[1].replace('https://', '')}:sub": "system:serviceaccount:external-secrets:external-secrets",
+                        f"{args[1].replace('https://', '')}:aud": "sts.amazonaws.com",
+                    }
+                },
+            }],
+        })
+    ),
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+aws.iam.RolePolicyAttachment(
+    f"{config.customer_id}-eso-policy-attach",
+    role=eso_role.name,
+    policy_arn=eso_policy.arn,
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+cortex_app_secret = aws.secretsmanager.Secret(
+    f"{config.customer_id}-cortex-app-secrets",
+    name=f"/byoc/{config.customer_id}/cortex-app",
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+aws.secretsmanager.SecretVersion(
+    f"{config.customer_id}-cortex-app-secrets-version",
+    secret_id=cortex_app_secret.id,
+    secret_string=json.dumps({
+        "FALKORDB_PASSWORD": "d6c77M05pV",
+        "MILVUS_TOKEN": "root:Milvus",
+        "GOOGLE_API_KEY": "",
+        "GEMINI_API_KEY": "",
+    }),
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+cortex_ingestion_secret = aws.secretsmanager.Secret(
+    f"{config.customer_id}-cortex-ingestion-secrets",
+    name=f"/byoc/{config.customer_id}/cortex-ingestion",
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+aws.secretsmanager.SecretVersion(
+    f"{config.customer_id}-cortex-ingestion-secrets-version",
+    secret_id=cortex_ingestion_secret.id,
+    secret_string=json.dumps({
+        "FALKORDB_PASSWORD": "d6c77M05pV",
+        "MILVUS_TOKEN": "root:Milvus",
+        "GOOGLE_API_KEY": "",
+        "GEMINI_API_KEY": "",
+    }),
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+pulumi.export("eso_role_arn", eso_role.arn)
+pulumi.export("cortex_app_secret_arn", cortex_app_secret.arn)
+pulumi.export("cortex_ingestion_secret_arn", cortex_ingestion_secret.arn)
 
 
 

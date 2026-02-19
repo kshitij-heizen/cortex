@@ -98,3 +98,9 @@ monitoring:
   port: http
   path: /metrics
   interval: 30s
+
+externalSecrets:
+  enabled: true
+  storeName: aws-secrets-manager
+  secretKey: /byoc/heizen/cortex-app
+  refreshInterval: 1h
