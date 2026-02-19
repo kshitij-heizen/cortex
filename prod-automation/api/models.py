@@ -596,6 +596,15 @@ class AddonInstallResult(BaseModel):
     error: Optional[str] = None
 
 
+class EsoSecretsInput(BaseModel):
+    """Secrets to store in AWS Secrets Manager via ESO."""
+
+    falkordb_password: str = Field(default="", description="FalkorDB password")
+    milvus_token: str = Field(default="", description="Milvus auth token")
+    google_api_key: str = Field(default="", description="Google API key")
+    gemini_api_key: str = Field(default="", description="Gemini API key")
+
+
 class CustomerConfigInput(BaseModel):
     """Input model for creating/updating customer configuration."""
 
@@ -620,6 +629,8 @@ class CustomerConfigInput(BaseModel):
 
     addons: Optional[ClusterAddonsInput] = None
 
+    eso_secrets: Optional[EsoSecretsInput] = None
+
     tags: dict[str, str] = Field(default_factory=dict)
 
 
@@ -634,6 +645,8 @@ class CustomerConfigResolved(BaseModel):
     eks_config: EksConfigResolved
 
     addons: Optional[ClusterAddonsResolved] = None
+
+    eso_secrets: Optional[EsoSecretsInput] = None
 
     tags: dict[str, str]
 

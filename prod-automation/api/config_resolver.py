@@ -509,6 +509,7 @@ def resolve_customer_config(input_config: CustomerConfigInput) -> CustomerConfig
         vpc_config=vpc_config,
         eks_config=eks_config,
         addons=addons,
+        eso_secrets=input_config.eso_secrets,
         tags=global_tags,
         created_at=now,
         updated_at=now,

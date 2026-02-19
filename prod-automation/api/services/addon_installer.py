@@ -762,7 +762,7 @@ echo "==> cert-manager installation complete!"
 
         return "\n".join(lines)
 
-    def _build_eso_install_script(self, eso_role_arn: str) -> str:
+    def _build_eso_install_script(self, eso_role_arn: str, region: str) -> str:
         """Build script to install External Secrets Operator."""
         return f"""
 # =============================================================================
@@ -785,7 +785,7 @@ echo "==> Waiting for ESO webhook..."
 kubectl wait --for=condition=available --timeout=120s deployment/external-secrets-webhook -n external-secrets
 
 echo "==> Creating ClusterSecretStore..."
-cat <<'CSS_EOF' | kubectl apply -f -
+cat <<CSS_EOF | kubectl apply -f -
 apiVersion: external-secrets.io/v1beta1
 kind: ClusterSecretStore
 metadata:
@@ -794,7 +794,7 @@ spec:
   provider:
     aws:
       service: SecretsManager
-      region: $REGION
+      region: {region}
       auth:
         jwt:
           serviceAccountRef:
@@ -856,7 +856,7 @@ echo "==> ESO installation complete!"
 
         eso_role_arn = self.outputs.get("eso_role_arn", "")
         if eso_role_arn:
-            script_parts.append(self._build_eso_install_script(eso_role_arn))
+            script_parts.append(self._build_eso_install_script(eso_role_arn, region))
 
         # Add ArgoCD installation if enabled
         if argocd_config and argocd_config.enabled:

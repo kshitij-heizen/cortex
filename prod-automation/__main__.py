@@ -10,6 +10,7 @@ from infra.components.access_node import AccessNode
 
 import json
 
+pulumi_config = pulumi.Config()
 config = load_customer_config()
 
 aws_provider = create_customer_aws_provider(config)
@@ -51,22 +52,27 @@ eks = EksCluster(
 # =============================================================================
 # External Secrets Operator (ESO) - IAM Role (IRSA)
 # =============================================================================
+
 eso_policy = aws.iam.Policy(
     f"{config.customer_id}-eso-policy",
-    policy=pulumi.Output.all(config.aws_region).apply(
-        lambda args: json.dumps({
-            "Version": "2012-10-17",
-            "Statement": [{
+    policy=json.dumps({
+        "Version": "2012-10-17",
+        "Statement": [
+            {
                 "Effect": "Allow",
                 "Action": [
                     "secretsmanager:GetSecretValue",
                     "secretsmanager:DescribeSecret",
-                    "secretsmanager:ListSecrets",
                 ],
+                "Resource": f"arn:aws:secretsmanager:{config.aws_region}:*:secret:/byoc/{config.customer_id}/*",
+            },
+            {
+                "Effect": "Allow",
+                "Action": ["secretsmanager:ListSecrets"],
                 "Resource": "*",
-            }],
-        })
-    ),
+            },
+        ],
+    }),
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
@@ -106,15 +112,20 @@ cortex_app_secret = aws.secretsmanager.Secret(
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
+_eso_google_key = pulumi_config.get("esoGoogleApiKey") or ""
+_eso_gemini_key = pulumi_config.get("esoGeminiApiKey") or ""
 aws.secretsmanager.SecretVersion(
     f"{config.customer_id}-cortex-app-secrets-version",
     secret_id=cortex_app_secret.id,
-    secret_string=json.dumps({
-        "FALKORDB_PASSWORD": "d6c77M05pV",
-        "MILVUS_TOKEN": "root:Milvus",
-        "GOOGLE_API_KEY": "",
-        "GEMINI_API_KEY": "",
-    }),
+    secret_string=pulumi.Output.all(
+        pulumi_config.require_secret("esoFalkordbPassword"),
+        pulumi_config.require_secret("esoMilvusToken"),
+    ).apply(lambda args: json.dumps({
+        "FALKORDB_PASSWORD": args[0],
+        "MILVUS_TOKEN": args[1],
+        "GOOGLE_API_KEY": _eso_google_key,
+        "GEMINI_API_KEY": _eso_gemini_key,
+    })),
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
@@ -127,12 +138,15 @@ cortex_ingestion_secret = aws.secretsmanager.Secret(
 aws.secretsmanager.SecretVersion(
     f"{config.customer_id}-cortex-ingestion-secrets-version",
     secret_id=cortex_ingestion_secret.id,
-    secret_string=json.dumps({
-        "FALKORDB_PASSWORD": "d6c77M05pV",
-        "MILVUS_TOKEN": "root:Milvus",
-        "GOOGLE_API_KEY": "",
-        "GEMINI_API_KEY": "",
-    }),
+    secret_string=pulumi.Output.all(
+        pulumi_config.require_secret("esoFalkordbPassword"),
+        pulumi_config.require_secret("esoMilvusToken"),
+    ).apply(lambda args: json.dumps({
+        "FALKORDB_PASSWORD": args[0],
+        "MILVUS_TOKEN": args[1],
+        "GOOGLE_API_KEY": _eso_google_key,
+        "GEMINI_API_KEY": _eso_gemini_key,
+    })),
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 

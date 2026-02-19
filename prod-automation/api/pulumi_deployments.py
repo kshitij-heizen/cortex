@@ -230,6 +230,13 @@ class PulumiDeploymentsClient:
         else:
             commands.append(config_set("argoCDEnabled", "false"))
 
+        # ESO Secrets (set as Pulumi secrets so they're encrypted in state)
+        if config.eso_secrets:
+            commands.append(config_set("esoFalkordbPassword", config.eso_secrets.falkordb_password, secret=True))
+            commands.append(config_set("esoMilvusToken", config.eso_secrets.milvus_token, secret=True))
+            commands.append(config_set("esoGoogleApiKey", config.eso_secrets.google_api_key, secret=True))
+            commands.append(config_set("esoGeminiApiKey", config.eso_secrets.gemini_api_key, secret=True))
+
         return commands
 
     async def trigger_deployment(
