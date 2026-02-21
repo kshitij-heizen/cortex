@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: milvus-webui-ingress
+  namespace: milvus-cortexai
+  annotations:
+    # Using pre-provisioned wildcard cert (no cert-manager annotation needed)
+    nginx.org/proxy-connect-timeout: "60s"
+    nginx.org/proxy-read-timeout: "300s"
+    nginx.org/proxy-send-timeout: "300s"
+    nginx.org/client-max-body-size: "100m"
+spec:
+  ingressClassName: nginx-inc
+  tls:
+    - hosts:
+        - cortexai-webui.milvusdb.usecortex.ai
+      secretName: milvus-wildcard-tls
+  rules:
+    - host: cortexai-webui.milvusdb.usecortex.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cortexai-milvus
+                port:
+                  number: 9091
