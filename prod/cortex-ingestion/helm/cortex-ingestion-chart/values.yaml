@@ -22,7 +22,7 @@ nodeSelector:
 
 serviceAccount:
   name: cortex-ingestion
-  irsaRoleArn: "arn:aws:iam::225919348997:role/heizentech-cortex-app-role"
+  irsaRoleArn: "arn:aws:iam::225919348997:role/heizen-cortex-app-role"
 
 config:
   ENV: "prod"

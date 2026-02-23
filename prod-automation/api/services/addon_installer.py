@@ -533,9 +533,9 @@ helm repo update jetstack
 
 if helm status cert-manager -n cert-manager &>/dev/null; then
     echo "==> cert-manager already installed, upgrading..."
-    helm upgrade cert-manager jetstack/cert-manager --namespace cert-manager --set crds.enabled=true 
+    helm upgrade cert-manager jetstack/cert-manager --namespace cert-manager --set crds.enabled=true --wait --timeout 5m
 else
-    helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set crds.enabled=true 
+    helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set crds.enabled=true --wait --timeout 5m
 fi
 
 echo "==> Waiting for cert-manager webhook..."
@@ -593,15 +593,7 @@ echo "==> cert-manager installation complete!"
             "helm repo update",
             "",
             "# Install / upgrade ArgoCD",
-            "helm upgrade --install argocd argo/argo-cd \\",
-            "  --namespace argocd --create-namespace \\",
-            f"  --version {argocd_config.chart_version} \\",
-            f"  --set server.replicas={argocd_config.server_replicas} \\",
-            f"  --set repoServer.replicas={argocd_config.repo_server_replicas} \\",
-            f"  --set 'redis-ha.enabled={'true' if argocd_config.ha_enabled else 'false'}' \\",
-            f"  --set controller.replicas={controller_replicas} \\",
-            "  --wait --timeout 5m",
-            "",
+            f"helm upgrade --install argocd argo/argo-cd --namespace argocd --create-namespace --version {argocd_config.chart_version} --set server.replicas={argocd_config.server_replicas} --set repoServer.replicas={argocd_config.repo_server_replicas} --set 'redis-ha.enabled={'true' if argocd_config.ha_enabled else 'false'}' --set controller.replicas={controller_replicas} --wait --timeout 5m",
         ]
 
         if argocd_config.repository:
@@ -676,7 +668,7 @@ echo "==> cert-manager installation complete!"
                         "  project: default",
                         "  source:",
                         f"    repoURL: {repo.url}",
-                        "    targetRevision: HEAD",
+                        "    targetRevision: kshitij/s3anddb",
                         f"    path: {argocd_config.root_app_path}",
                         "    directory:",
                         "      recurse: true",
@@ -764,7 +756,7 @@ echo "==> ESO installation complete!"
         """Build combined script that installs Karpenter then ArgoCD."""
         script_parts = [
             "#!/bin/bash",
-            "set -euo pipefail",
+            "set -eo pipefail",
             "",
             'export PATH="/usr/local/bin:$PATH"',
             '# SSM Run Command may not set HOME; use default so KUBECONFIG is predictable',
@@ -958,7 +950,7 @@ echo "==> ESO installation complete!"
         # Build ArgoCD-only script
         script_parts = [
             "#!/bin/bash",
-            "set -euo pipefail",
+            "set -eo pipefail",
             "",
             'export PATH="/usr/local/bin:$PATH"',
             'export HOME="${HOME:-/root}"',
