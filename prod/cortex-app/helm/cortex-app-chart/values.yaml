@@ -20,8 +20,7 @@ nodeSelector:
 
 serviceAccount:
   name: cortex-app
-  # Set to IAM role ARN when IRSA is configured
-  irsaRoleArn: ""
+  irsaRoleArn: "arn:aws:iam::225919348997:role/heizentech-cortex-app-role"
 
 config:
   ENV: "prod"
@@ -63,7 +62,12 @@ config:
   NEXTAUTH_TABLE_NAME: "cortex-users"
   CORTEX_API_KEYS_TABLE_NAME: "cortex_user_api_keys_prod"
   CORTEX_LOCAL_SOURCES_BUCKET_NAME: "cortex-local-sources"
-  TENANT_ID_MAPPING_TABLE_NAME: "tenant-id-mapping"
+  TENANT_ID_MAPPING_TABLE_NAME: "tenant-id-mapping-prod"
+  USER_METADATA_TABLE_NAME: "user_metadata_prod"
+  USER_INDEXED_DATA_TABLE: "user_indexed_data_status"
+  USER_DETAILS_TABLE_NAME: "user_details"
+  USERS_TO_SIGN_UP_TABLE_NAME: "users_to_sign_up_prod"
+  TOKEN_BUCKET_TABLE_NAME: "token_bucket_rate_limiter"
 
   MEMORY_SERVICE_URL: "http://cortex-ingestion.cortex-ingestion.svc.cluster.local"
   VECTOR_PUSH_URL: "https://vector.usecortex.opengig.work/"

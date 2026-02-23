@@ -22,7 +22,7 @@ nodeSelector:
 
 serviceAccount:
   name: cortex-ingestion
-  irsaRoleArn: ""
+  irsaRoleArn: "arn:aws:iam::225919348997:role/heizentech-cortex-app-role"
 
 config:
   ENV: "prod"
@@ -59,6 +59,8 @@ config:
   VECTOR_PUSH_URL: "https://vector.usecortex.opengig.work/"
 
   CORTEX_API_KEYS_TABLE_NAME: "cortex_user_api_keys_prod"
+  USER_INDEXED_DATA_TABLE: "user_indexed_data_status"
+  TOKEN_BUCKET_TABLE_NAME: "token_bucket_rate_limiter"
 
 ingress:
   enabled: true
