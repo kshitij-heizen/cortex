@@ -1,0 +1,22 @@
+# Wildcard Certificate for *.falkordb.<your-domain>
+# Apply AFTER setting up a ClusterIssuer from providers/
+#
+# Usage:
+#   1. Update dnsNames to match your domain
+#   2. kubectl apply -f certificate.yaml
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: falkordb-wildcard-cert
+  namespace: falkordb-shared
+spec:
+  secretName: falkordb-wildcard-tls
+  issuerRef:
+    name: letsencrypt-dns01
+    kind: ClusterIssuer
+  commonName: "*.falkordb.usecortex.ai"
+  dnsNames:
+  - "*.falkordb.usecortex.ai"
+  duration: 2160h    # 90 days
+  renewBefore: 360h  # 15 days before expiry

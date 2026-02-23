@@ -1,0 +1,202 @@
+apiVersion: milvus.io/v1beta1
+kind: Milvus
+metadata:
+  name: cortexai
+  namespace: milvus-cortexai
+  labels:
+    app: milvus
+spec:
+  mode: cluster
+  
+  # Global configuration
+  config:
+    milvus:
+      log:
+        level: info
+      # Enable authentication
+      common:
+        security:
+          authorizationEnabled: true
+    # Max vector fields - Milvus v2.6.0 limit is 10 (was 20, caused panic)
+    proxy:
+      maxVectorFieldNum: 10
+  
+  # Component configurations
+  components:
+    # Disable built-in monitoring metrics endpoint if using external prometheus
+    disableMetric: false
+    
+    # Image configuration (optional - uses default if not specified)
+    # image: milvusdb/milvus:v2.4.0
+    
+    # Schedule on memory-optimized nodes (Karpenter memory-pool-xlarge)
+    nodeSelector:
+      role: memory-db-large-scalable
+    tolerations:
+      - key: workload
+        operator: Equal
+        value: database-large-scalable
+        effect: NoSchedule
+    
+    # Proxy - client-facing component
+    proxy:
+      replicas: 2
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "1Gi"
+        limits:
+          cpu: "2"
+          memory: "4Gi"
+      serviceType: ClusterIP
+    
+    # QueryNode - handles search/query requests
+    queryNode:
+      replicas: 2
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "2Gi"
+        limits:
+          cpu: "4"
+          memory: "8Gi"
+    
+    # DataNode - handles data insertion
+    dataNode:
+      replicas: 2
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "1Gi"
+        limits:
+          cpu: "2"
+          memory: "4Gi"
+    
+    # IndexNode - builds indexes
+    indexNode:
+      replicas: 1
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "1Gi"
+        limits:
+          cpu: "4"
+          memory: "8Gi"
+    
+    # MixCoord - consolidated coordinator (rootCoord, queryCoord, dataCoord, indexCoord)
+    mixCoord:
+      replicas: 1
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "512Mi"
+        limits:
+          cpu: "2"
+          memory: "2Gi"
+
+  # Dependencies configuration
+  dependencies:
+    # etcd for metadata storage
+    etcd:
+      inCluster:
+        deletionPolicy: Delete
+        pvcDeletion: false
+        values:
+          replicaCount: 3
+          nodeSelector:
+            role: memory-db-large-scalable
+          tolerations:
+            - key: workload
+              operator: Equal
+              value: database-large-scalable
+              effect: NoSchedule
+          persistence:
+            enabled: true
+            storageClass: milvus-storage
+            size: 10Gi
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+    
+    # MinIO for object storage
+    storage:
+      inCluster:
+        deletionPolicy: Delete
+        pvcDeletion: false
+        values:
+          mode: distributed
+          replicas: 4
+          nodeSelector:
+            role: memory-db-large-scalable
+          tolerations:
+            - key: workload
+              operator: Equal
+              value: database-large-scalable
+              effect: NoSchedule
+          persistence:
+            enabled: true
+            storageClass: milvus-storage
+            size: 100Gi
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+    
+    # Message queue - using Pulsar (alternatively can use Kafka or Woodpecker)
+    msgStreamType: pulsar
+    pulsar:
+      inCluster:
+        deletionPolicy: Delete
+        pvcDeletion: false
+        values:
+          nodeSelector:
+            role: memory-db-large-scalable
+          tolerations:
+            - key: workload
+              operator: Equal
+              value: database-large-scalable
+              effect: NoSchedule
+          components:
+            autorecovery: false
+          proxy:
+            replicaCount: 1
+            resources:
+              requests:
+                cpu: "100m"
+                memory: "256Mi"
+          bookkeeper:
+            replicaCount: 2
+            resources:
+              requests:
+                cpu: "100m"
+                memory: "512Mi"
+            volumes:
+              journal:
+                size: 20Gi
+                storageClassName: milvus-storage
+              ledgers:
+                size: 50Gi
+                storageClassName: milvus-storage
+          zookeeper:
+            replicaCount: 1
+            resources:
+              requests:
+                cpu: "100m"
+                memory: "256Mi"
+            volumes:
+              data:
+                size: 10Gi
+                storageClassName: milvus-storage
+          broker:
+            replicaCount: 1
+            resources:
+              requests:
+                cpu: "100m"
+                memory: "512Mi"

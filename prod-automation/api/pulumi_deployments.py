@@ -230,12 +230,22 @@ class PulumiDeploymentsClient:
         else:
             commands.append(config_set("argoCDEnabled", "false"))
 
-        # ESO Secrets (set as Pulumi secrets so they're encrypted in state)
-        if config.eso_secrets:
-            commands.append(config_set("esoFalkordbPassword", config.eso_secrets.falkordb_password, secret=True))
-            commands.append(config_set("esoMilvusToken", config.eso_secrets.milvus_token, secret=True))
-            commands.append(config_set("esoGoogleApiKey", config.eso_secrets.google_api_key, secret=True))
-            commands.append(config_set("esoGeminiApiKey", config.eso_secrets.gemini_api_key, secret=True))
+        # ESO Secrets – always set so __main__.py require_secret() succeeds; use logical defaults when not provided
+        _ESO_DEFAULT_FALKORDB = "changeme"
+        _ESO_DEFAULT_MILVUS = "root:Milvus"
+        eso = config.eso_secrets
+        commands.append(config_set(
+            "esoFalkordbPassword",
+            eso.falkordb_password if eso else _ESO_DEFAULT_FALKORDB,
+            secret=True,
+        ))
+        commands.append(config_set(
+            "esoMilvusToken",
+            eso.milvus_token if eso else _ESO_DEFAULT_MILVUS,
+            secret=True,
+        ))
+        commands.append(config_set("esoGoogleApiKey", eso.google_api_key if eso else ""))
+        commands.append(config_set("esoGeminiApiKey", eso.gemini_api_key if eso else ""))
 
         return commands
 

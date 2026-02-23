@@ -49,10 +49,6 @@ eks = EksCluster(
 
 
 
-# =============================================================================
-# External Secrets Operator (ESO) - IAM Role (IRSA)
-# =============================================================================
-
 eso_policy = aws.iam.Policy(
     f"{config.customer_id}-eso-policy",
     policy=json.dumps({
@@ -106,25 +102,181 @@ aws.iam.RolePolicyAttachment(
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
+
+
+documents_bucket = aws.s3.BucketV2(
+    f"{config.customer_id}-documents-bucket",
+    tags={**config.tags, "Name": f"{config.customer_id}-documents"},
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+aws.s3.BucketPublicAccessBlock(
+    f"{config.customer_id}-documents-bucket-public-access",
+    bucket=documents_bucket.id,
+    block_public_acls=True,
+    block_public_policy=True,
+    ignore_public_acls=True,
+    restrict_public_buckets=True,
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+local_sources_bucket = aws.s3.BucketV2(
+    f"{config.customer_id}-local-sources-bucket",
+    tags={**config.tags, "Name": f"{config.customer_id}-cortex-local-sources"},
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+aws.s3.BucketPublicAccessBlock(
+    f"{config.customer_id}-local-sources-bucket-public-access",
+    bucket=local_sources_bucket.id,
+    block_public_acls=True,
+    block_public_policy=True,
+    ignore_public_acls=True,
+    restrict_public_buckets=True,
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+
+# =============================================================================
+# DynamoDB Tables
+# =============================================================================
+
+cortex_users_table = aws.dynamodb.Table(
+    f"{config.customer_id}-cortex-users",
+    billing_mode="PAY_PER_REQUEST",
+    hash_key="pk",
+    range_key="sk",
+    attributes=[
+        aws.dynamodb.TableAttributeArgs(name="pk", type="S"),
+        aws.dynamodb.TableAttributeArgs(name="sk", type="S"),
+    ],
+    tags={**config.tags, "Name": f"{config.customer_id}-cortex-users"},
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+api_keys_table = aws.dynamodb.Table(
+    f"{config.customer_id}-cortex-api-keys",
+    billing_mode="PAY_PER_REQUEST",
+    hash_key="api_key",
+    attributes=[
+        aws.dynamodb.TableAttributeArgs(name="api_key", type="S"),
+    ],
+    tags={**config.tags, "Name": f"{config.customer_id}-cortex-api-keys"},
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+tenant_mapping_table = aws.dynamodb.Table(
+    f"{config.customer_id}-tenant-id-mapping",
+    billing_mode="PAY_PER_REQUEST",
+    hash_key="tenant_id",
+    attributes=[
+        aws.dynamodb.TableAttributeArgs(name="tenant_id", type="S"),
+    ],
+    tags={**config.tags, "Name": f"{config.customer_id}-tenant-id-mapping"},
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+
+
+
+cortex_app_policy = aws.iam.Policy(
+    f"{config.customer_id}-cortex-app-policy",
+    policy=pulumi.Output.all(
+        documents_bucket.arn,
+        local_sources_bucket.arn,
+        cortex_users_table.arn,
+        api_keys_table.arn,
+        tenant_mapping_table.arn,
+    ).apply(lambda args: json.dumps({
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"],
+                "Resource": [args[0], f"{args[0]}/*", args[1], f"{args[1]}/*"],
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem",
+                    "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:Scan",
+                    "dynamodb:BatchGetItem", "dynamodb:BatchWriteItem",
+                ],
+                "Resource": [args[2], args[3], args[4]],
+            },
+        ],
+    })),
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+cortex_app_role = aws.iam.Role(
+    f"{config.customer_id}-cortex-app-role",
+    assume_role_policy=pulumi.Output.all(
+        eks.oidc_provider_arn, eks.oidc_provider_url
+    ).apply(lambda args: json.dumps({
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Effect": "Allow",
+            "Principal": {"Federated": args[0]},
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringLike": {
+                    f"{args[1].replace('https://', '')}:sub": "system:serviceaccount:cortex-*:cortex-*",
+                },
+                "StringEquals": {
+                    f"{args[1].replace('https://', '')}:aud": "sts.amazonaws.com",
+                },
+            },
+        }],
+    })),
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+aws.iam.RolePolicyAttachment(
+    f"{config.customer_id}-cortex-app-policy-attach",
+    role=cortex_app_role.name,
+    policy_arn=cortex_app_policy.arn,
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+
+# =============================================================================
+# Secrets Manager - cortex-app and cortex-ingestion secrets
+# =============================================================================
+
 cortex_app_secret = aws.secretsmanager.Secret(
     f"{config.customer_id}-cortex-app-secrets",
     name=f"/byoc/{config.customer_id}/cortex-app",
+    recovery_window_in_days=0,
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
 _eso_google_key = pulumi_config.get("esoGoogleApiKey") or ""
 _eso_gemini_key = pulumi_config.get("esoGeminiApiKey") or ""
+
 aws.secretsmanager.SecretVersion(
     f"{config.customer_id}-cortex-app-secrets-version",
     secret_id=cortex_app_secret.id,
     secret_string=pulumi.Output.all(
         pulumi_config.require_secret("esoFalkordbPassword"),
         pulumi_config.require_secret("esoMilvusToken"),
+        documents_bucket.bucket,
+        local_sources_bucket.bucket,
+        cortex_users_table.name,
+        api_keys_table.name,
+        tenant_mapping_table.name,
+        cortex_app_role.arn,
     ).apply(lambda args: json.dumps({
         "FALKORDB_PASSWORD": args[0],
         "MILVUS_TOKEN": args[1],
         "GOOGLE_API_KEY": _eso_google_key,
         "GEMINI_API_KEY": _eso_gemini_key,
+        "MINIO_BUCKET": args[2],
+        "CORTEX_LOCAL_SOURCES_BUCKET_NAME": args[3],
+        "NEXTAUTH_TABLE_NAME": args[4],
+        "CORTEX_API_KEYS_TABLE_NAME": args[5],
+        "TENANT_ID_MAPPING_TABLE_NAME": args[6],
+        "CORTEX_APP_ROLE_ARN": args[7],
     })),
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
@@ -132,6 +284,7 @@ aws.secretsmanager.SecretVersion(
 cortex_ingestion_secret = aws.secretsmanager.Secret(
     f"{config.customer_id}-cortex-ingestion-secrets",
     name=f"/byoc/{config.customer_id}/cortex-ingestion",
+    recovery_window_in_days=0,
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
@@ -141,20 +294,25 @@ aws.secretsmanager.SecretVersion(
     secret_string=pulumi.Output.all(
         pulumi_config.require_secret("esoFalkordbPassword"),
         pulumi_config.require_secret("esoMilvusToken"),
+        documents_bucket.bucket,
+        api_keys_table.name,
+        cortex_app_role.arn,
     ).apply(lambda args: json.dumps({
         "FALKORDB_PASSWORD": args[0],
         "MILVUS_TOKEN": args[1],
         "GOOGLE_API_KEY": _eso_google_key,
         "GEMINI_API_KEY": _eso_gemini_key,
+        "MINIO_BUCKET": args[2],
+        "CORTEX_API_KEYS_TABLE_NAME": args[3],
+        "CORTEX_APP_ROLE_ARN": args[4],
     })),
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
-pulumi.export("eso_role_arn", eso_role.arn)
-pulumi.export("cortex_app_secret_arn", cortex_app_secret.arn)
-pulumi.export("cortex_ingestion_secret_arn", cortex_ingestion_secret.arn)
 
-
+# =============================================================================
+# Access Node (SSM)
+# =============================================================================
 
 access_node = None
 if (
@@ -181,8 +339,6 @@ if (
 
 
 if access_node:
-    # Grant the access node's IAM role Kubernetes cluster-admin permissions
-    # This allows users SSM'd into the access node to run kubectl commands
     aws.eks.AccessEntry(
         f"{config.customer_id}-access-node-eks-access",
         cluster_name=eks.cluster_name,
@@ -213,11 +369,14 @@ if access_node:
     pulumi.export("access_node_role_arn", access_node.role.arn)
 
 
+# =============================================================================
+# Exports
+# =============================================================================
+
 pulumi.export("vpc_id", networking.vpc_id)
 pulumi.export("private_subnet_ids", networking.private_subnet_ids)
 pulumi.export("public_subnet_ids", networking.public_subnet_ids)
 pulumi.export("pod_subnet_ids", networking.pod_subnet_ids)
-
 
 pulumi.export("eks_cluster_role_arn", iam.cluster_role_arn)
 pulumi.export("eks_node_role_arn", iam.node_role_arn)
@@ -231,6 +390,17 @@ pulumi.export("eks_cluster_endpoint", eks.cluster_endpoint)
 pulumi.export("eks_cluster_arn", eks.cluster_arn)
 pulumi.export("eks_oidc_provider_arn", eks.oidc_provider_arn)
 pulumi.export("eks_oidc_provider_url", eks.oidc_provider_url)
+
+pulumi.export("eso_role_arn", eso_role.arn)
+pulumi.export("cortex_app_secret_arn", cortex_app_secret.arn)
+pulumi.export("cortex_ingestion_secret_arn", cortex_ingestion_secret.arn)
+
+pulumi.export("documents_bucket_name", documents_bucket.bucket)
+pulumi.export("local_sources_bucket_name", local_sources_bucket.bucket)
+pulumi.export("cortex_users_table_name", cortex_users_table.name)
+pulumi.export("api_keys_table_name", api_keys_table.name)
+pulumi.export("tenant_mapping_table_name", tenant_mapping_table.name)
+pulumi.export("cortex_app_role_arn", cortex_app_role.arn)
 
 pulumi.export(
     "config_summary",

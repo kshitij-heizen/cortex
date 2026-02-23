@@ -1,0 +1,94 @@
+apiVersion: "clickhouse.altinity.com/v1"
+kind: "ClickHouseInstallation"
+metadata:
+  name: cluster01
+spec:
+  templates:
+    podTemplates:
+      - name: clickhouse-pod-template
+        spec:
+          tolerations:
+            - key: workload
+              value: clickhouse
+              effect: NoSchedule
+          nodeSelector:
+            role: clickhouse
+          containers:
+            - name: clickhouse
+              image: altinity/clickhouse-server:25.3.6.10034.altinitystable
+              ports:
+                - name: metrics
+                  containerPort: 9363
+                  protocol: TCP
+              volumeMounts:
+                - name: clickhouse-storage
+                  mountPath: /var/lib/clickhouse
+    volumeClaimTemplates:
+      - name: clickhouse-storage
+        reclaimPolicy: Retain
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 100Gi
+          storageClassName: clickhouse-storage
+  configuration:
+    settings:
+      prometheus/endpoint: /metrics
+      prometheus/port: 9363
+      prometheus/metrics: true
+      prometheus/events: true
+      prometheus/asynchronous_metrics: true
+    files:
+      # Server-level config to disable bloated system log tables
+      # Uses 02- prefix to override operator's auto-generated 01- configs
+      02-disable-system-logs.xml: |
+        <yandex>
+            <trace_log remove="1"/>
+            <text_log remove="1"/>
+            <metric_log remove="1"/>
+            <asynchronous_metric_log remove="1"/>
+            <query_thread_log remove="1"/>
+            <session_log remove="1"/>
+            <processors_profile_log remove="1"/>
+            <query_log replace="1">
+                <database>system</database>
+                <table>query_log</table>
+                <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + INTERVAL 3 DAY</engine>
+                <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+            </query_log>
+            <part_log replace="1">
+                <database>system</database>
+                <table>part_log</table>
+                <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + INTERVAL 3 DAY</engine>
+                <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+            </part_log>
+        </yandex>
+    users:
+      # Default user - secured with password
+      default/password_sha256_hex: "73bb8a3438b824e24f3a5cab7bf0f48ddd3cff6ede677ca0087b824a8e29a36a"
+      default/networks/ip: "::/0"
+      # Admin user
+      admin/password_sha256_hex: "4c6d7299d9505f1aef715179d27e5ec2af1c92b26f76e78598fc7dd397dbf2b0"
+      admin/networks/ip: "::/0"
+      admin/profile: default
+      admin/quota: default
+      # Memory limits (must be in users section, not settings)
+      default/max_memory_usage: 8000000000
+      default/max_memory_usage_for_user: 8000000000
+      default/max_memory_usage_for_all_queries: 16000000000
+      default/memory_overcommit_ratio_denominator: 2
+    zookeeper:
+      nodes:
+        - host: keeper-clickhouse-keeper.clickhouse.svc.cluster.local
+          port: 2181
+    clusters:
+      - name: cluster01
+        secret:
+          auto: "true"
+        layout:
+          shardsCount: 1
+          replicasCount: 2
+        templates:
+          podTemplate: clickhouse-pod-template

@@ -1,3 +1,4 @@
+
 import asyncio
 import base64
 import json
@@ -83,7 +84,6 @@ class AddonInstallerService:
             ) from e
 
         creds = assumed["Credentials"]
-
         client = boto3.client(
             service,
             region_name=self.config.aws_config.region,
@@ -155,16 +155,7 @@ echo "==> Installing Karpenter {karpenter_config.version}..."
 
 # Install Karpenter Helm chart
 helm registry logout public.ecr.aws || true
-helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \\
-    --version "{karpenter_config.version}" \\
-    --namespace karpenter --create-namespace \\
-    --set "settings.clusterName=$CLUSTER_NAME" \\
-    --set "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn={karpenter_role_arn}" \\
-    --set "controller.resources.requests.cpu=0.5" \\
-    --set "controller.resources.requests.memory=512Mi" \\
-    --set "controller.resources.limits.cpu=1" \\
-    --set "controller.resources.limits.memory=1Gi" \\
-    --wait --timeout 5m
+helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version "{karpenter_config.version}" --namespace karpenter --create-namespace --set "settings.clusterName=$CLUSTER_NAME" --set "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn={karpenter_role_arn}" --set "controller.resources.requests.cpu=0.5" --set "controller.resources.requests.memory=512Mi" --set "controller.resources.limits.cpu=1" --set "controller.resources.limits.memory=1Gi" --wait --timeout 5m
 
 echo "==> Waiting for Karpenter controller to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/karpenter -n karpenter
@@ -225,7 +216,6 @@ echo "==> Verifying Karpenter installation..."
 kubectl get pods -n karpenter
 kubectl get ec2nodeclasses
 kubectl get nodepools
-
 echo "==> Karpenter installation complete!"
 """
 
@@ -236,7 +226,6 @@ echo "==> Karpenter installation complete!"
 # STORAGE CLASS (gp3)
 # =============================================================================
 echo "==> Creating gp3 StorageClass..."
-
 cat <<'STORAGECLASS_EOF' | kubectl apply -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -258,7 +247,6 @@ kubectl get storageclass gp3
 # KARPENTER NODEPOOLS
 # =============================================================================
 echo "==> Creating Karpenter NodePools..."
-
 cat <<'NODEPOOL_EOF' | kubectl apply -f -
 apiVersion: karpenter.sh/v1
 kind: NodePool
@@ -345,15 +333,11 @@ kubectl wait --for=condition=Established crd --all --timeout=120s
 
 # Now install KubeBlocks - USE v1.0.0
 echo "==> Installing KubeBlocks operator..."
-helm upgrade --install kubeblocks kubeblocks/kubeblocks \
-    --namespace kubeblocks --create-namespace \
-    --version "1.0.0" \
-    --wait --timeout 10m
+helm upgrade --install kubeblocks kubeblocks/kubeblocks --namespace kubeblocks --create-namespace --version "1.0.0" --wait --timeout 10m
 
 echo "==> Verifying KubeBlocks..."
 kubectl get pods -n kubeblocks
 kubectl get crd | grep kubeblocks | head -5
-
 echo "==> KubeBlocks installation complete!"
 
 # =============================================================================
@@ -389,7 +373,6 @@ while [ $elapsed -lt $timeout ]; do
     sleep 5
     elapsed=$((elapsed + 5))
 done
-
 kubectl get clusterdefinitions.apps.kubeblocks.io | grep falkordb
 echo "==> FalkorDB addon installation complete!"
 
@@ -397,7 +380,6 @@ echo "==> FalkorDB addon installation complete!"
 # MILVUS OPERATOR
 # =============================================================================
 echo "==> Installing Milvus Operator..."
-
 helm repo add milvus-operator https://zilliztech.github.io/milvus-operator
 helm repo update
 
@@ -421,9 +403,7 @@ while [ $elapsed -lt $timeout ]; do
 done
 kubectl get pods -n milvus-operator
 echo "==> Milvus Operator installation complete!"
-
 """
-
 
     def _build_monitoring_and_data_pipeline_script(self, cluster_name: str) -> str:
         """Build script to install monitoring stack, ClickHouse operator, and Vector prerequisites."""
@@ -432,7 +412,6 @@ echo "==> Milvus Operator installation complete!"
 # CLICKHOUSE STORAGE CLASS
 # =============================================================================
 echo "==> Creating ClickHouse StorageClass..."
-
 cat <<'CH_SC_EOF' | kubectl apply -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -451,14 +430,12 @@ allowVolumeExpansion: true
 volumeBindingMode: WaitForFirstConsumer
 reclaimPolicy: Retain
 CH_SC_EOF
-
 echo "==> ClickHouse StorageClass created!"
 
 # =============================================================================
 # CLICKHOUSE KARPENTER NODEPOOL
 # =============================================================================
 echo "==> Creating ClickHouse Karpenter NodePool..."
-
 cat <<'CH_NP_EOF' | kubectl apply -f -
 apiVersion: karpenter.sh/v1
 kind: NodePool
@@ -496,24 +473,20 @@ spec:
           - Drifted
           - Underutilized
 CH_NP_EOF
-
 echo "==> ClickHouse NodePool created!"
 
 # =============================================================================
 # ALTINITY CLICKHOUSE OPERATOR
 # =============================================================================
 echo "==> Installing Altinity ClickHouse Operator..."
-
 helm repo add altinity https://helm.altinity.com
 helm repo update altinity
 
 if helm status clickhouse-operator -n clickhouse &>/dev/null; then
     echo "==> ClickHouse Operator already installed, upgrading..."
-    helm upgrade clickhouse-operator altinity/altinity-clickhouse-operator \\
-        --version 0.25.5 --namespace clickhouse --wait --timeout 5m
+    helm upgrade clickhouse-operator altinity/altinity-clickhouse-operator --version 0.25.5 --namespace clickhouse --wait --timeout 5m
 else
-    helm install clickhouse-operator altinity/altinity-clickhouse-operator \\
-        --version 0.25.5 --namespace clickhouse --create-namespace --wait --timeout 5m
+    helm install clickhouse-operator altinity/altinity-clickhouse-operator --version 0.25.5 --namespace clickhouse --create-namespace --wait --timeout 5m
 fi
 
 echo "==> Waiting for ClickHouse Operator CRDs..."
@@ -534,53 +507,19 @@ echo "==> ClickHouse Operator installation complete!"
 # MONITORING STACK (kube-prometheus-stack)
 # =============================================================================
 echo "==> Installing kube-prometheus-stack..."
-
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
 if helm status monitoring -n monitoring &>/dev/null; then
     echo "==> Monitoring stack already installed, upgrading..."
-    helm upgrade monitoring prometheus-community/kube-prometheus-stack \\
-        --namespace monitoring \\
-        --version 65.1.1 \\
-        --set prometheus.prometheusSpec.nodeSelector.role=general \\
-        --set grafana.nodeSelector.role=general \\
-        --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \\
-        --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \\
-        --set prometheus.prometheusSpec.retention=10d \\
-        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=gp2 \\
-        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=20Gi \\
-        --set grafana.persistence.enabled=true \\
-        --set grafana.persistence.storageClassName=gp2 \\
-        --set grafana.persistence.size=2Gi \\
-        --set grafana.adminPassword="Prod_Grafana_Pass123!" \\
-        --set alertmanager.enabled=false \\
-        --set nodeExporter.enabled=true \\
-        --wait --timeout 10m
+    helm upgrade monitoring prometheus-community/kube-prometheus-stack --namespace monitoring --version 65.1.1 --set prometheus.prometheusSpec.nodeSelector.role=general --set grafana.nodeSelector.role=general --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false --set prometheus.prometheusSpec.retention=10d --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=gp2 --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=20Gi --set grafana.persistence.enabled=true --set grafana.persistence.storageClassName=gp2 --set grafana.persistence.size=2Gi --set grafana.adminPassword="Prod_Grafana_Pass123!" --set alertmanager.enabled=false --set nodeExporter.enabled=true --wait --timeout 10m
 else
-    helm install monitoring prometheus-community/kube-prometheus-stack \\
-        --namespace monitoring --create-namespace \\
-        --version 65.1.1 \\
-        --set prometheus.prometheusSpec.nodeSelector.role=general \\
-        --set grafana.nodeSelector.role=general \\
-        --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \\
-        --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \\
-        --set prometheus.prometheusSpec.retention=10d \\
-        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=gp2 \\
-        --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=20Gi \\
-        --set grafana.persistence.enabled=true \\
-        --set grafana.persistence.storageClassName=gp2 \\
-        --set grafana.persistence.size=2Gi \\
-        --set grafana.adminPassword="Prod_Grafana_Pass123!" \\
-        --set alertmanager.enabled=false \\
-        --set nodeExporter.enabled=true \\
-        --wait --timeout 10m
+    helm install monitoring prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace --version 65.1.1 --set prometheus.prometheusSpec.nodeSelector.role=general --set grafana.nodeSelector.role=general --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false --set prometheus.prometheusSpec.retention=10d --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName=gp2 --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=20Gi --set grafana.persistence.enabled=true --set grafana.persistence.storageClassName=gp2 --set grafana.persistence.size=2Gi --set grafana.adminPassword="Prod_Grafana_Pass123!" --set alertmanager.enabled=false --set nodeExporter.enabled=true --wait --timeout 10m
 fi
 
 echo "==> Waiting for monitoring pods..."
 kubectl wait --for=condition=available --timeout=300s deployment/monitoring-grafana -n monitoring || true
 kubectl wait --for=condition=available --timeout=300s deployment/monitoring-kube-state-metrics -n monitoring || true
-
 echo "==> Monitoring pods:"
 kubectl get pods -n monitoring
 echo "==> Monitoring stack installation complete!"
@@ -589,21 +528,14 @@ echo "==> Monitoring stack installation complete!"
 # CERT-MANAGER
 # =============================================================================
 echo "==> Installing cert-manager..."
-
 helm repo add jetstack https://charts.jetstack.io
 helm repo update jetstack
 
 if helm status cert-manager -n cert-manager &>/dev/null; then
     echo "==> cert-manager already installed, upgrading..."
-    helm upgrade cert-manager jetstack/cert-manager \\
-        --namespace cert-manager \\
-        --set crds.enabled=true \\
-        --wait --timeout 5m
+    helm upgrade cert-manager jetstack/cert-manager --namespace cert-manager --set crds.enabled=true 
 else
-    helm install cert-manager jetstack/cert-manager \\
-        --namespace cert-manager --create-namespace \\
-        --set crds.enabled=true \\
-        --wait --timeout 5m
+    helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set crds.enabled=true 
 fi
 
 echo "==> Waiting for cert-manager webhook..."
@@ -626,6 +558,16 @@ spec:
           ingress:
             ingressClassName: nginx-inc
 ISSUER_EOF
+
+echo "==> Creating self-signed ClusterIssuer..."
+cat <<'SELFSIGNED_EOF' | kubectl apply -f -
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {{}}
+SELFSIGNED_EOF
 
 echo "==> cert-manager installation complete!"
 """
@@ -670,6 +612,7 @@ echo "==> cert-manager installation complete!"
 
             lines.append("# Create repository credentials secret")
             lines.append('echo "==> Creating ArgoCD repository credentials..."')
+
             if ssm_repo_password_param:
                 lines.extend(
                     [
@@ -770,16 +713,19 @@ echo "==> cert-manager installation complete!"
 # =============================================================================
 echo "==> Installing External Secrets Operator..."
 
-helm repo add external-secrets https://charts.external-secrets.io
+# Clear stale OCI registry auth left by Karpenter's ECR pull
+helm registry logout public.ecr.aws 2>/dev/null || true
+rm -f "${{HOME}}/.config/helm/registry/config.json" 2>/dev/null || true
+
+helm repo add external-secrets https://charts.external-secrets.io || true
 helm repo update external-secrets
 
-helm upgrade --install external-secrets external-secrets/external-secrets \\
-    --namespace external-secrets --create-namespace \\
-    --set serviceAccount.annotations."eks\\.amazonaws\\.com/role-arn"="{eso_role_arn}" \\
-    --set nodeSelector.role=general \\
-    --set webhook.nodeSelector.role=general \\
-    --set certController.nodeSelector.role=general \\
-    --wait --timeout 5m
+if helm status external-secrets -n external-secrets &>/dev/null; then
+    echo "==> ESO already installed, upgrading..."
+    helm upgrade external-secrets external-secrets/external-secrets --namespace external-secrets --set installCRDs=true --set serviceAccount.annotations."eks\\.amazonaws\\.com/role-arn"="{eso_role_arn}" --set nodeSelector.role=general --set webhook.nodeSelector.role=general --set certController.nodeSelector.role=general --wait --timeout 5m
+else
+    helm install external-secrets external-secrets/external-secrets --namespace external-secrets --create-namespace --set installCRDs=true --set serviceAccount.annotations."eks\\.amazonaws\\.com/role-arn"="{eso_role_arn}" --set nodeSelector.role=general --set webhook.nodeSelector.role=general --set certController.nodeSelector.role=general --wait --timeout 5m
+fi
 
 echo "==> Waiting for ESO webhook..."
 kubectl wait --for=condition=available --timeout=120s deployment/external-secrets-webhook -n external-secrets
@@ -915,6 +861,7 @@ echo "==> ESO installation complete!"
         argocd_config = self.config.addons.argocd if self.config.addons else None
 
         ssm = self._get_client("ssm")
+
         ssm_repo_password_param: str | None = None
 
         # Store ArgoCD repo password in SSM if provided
@@ -954,12 +901,11 @@ echo "==> ESO installation complete!"
             InstanceIds=[instance_id],
             DocumentName="AWS-RunShellScript",
             Parameters={"commands": script.split("\n")},
-            TimeoutSeconds=900,  # 15 minutes for everything
+            TimeoutSeconds=1800,  # 15 minutes for everything
             Comment=f"Install Karpenter + ArgoCD for {self.customer_id}-{self.environment}",
         )
 
         command_id = response["Command"]["CommandId"]
-
         self._save_addon_state("all", command_id, instance_id)
 
         return AddonInstallResult(
@@ -987,8 +933,8 @@ echo "==> ESO installation complete!"
             raise ValueError("EKS cluster name not found in deployment outputs")
 
         ssm = self._get_client("ssm")
-        ssm_repo_password_param: str | None = None
 
+        ssm_repo_password_param: str | None = None
         if argocd_config.repository and (argocd_config.repository.password or "").strip():
             param_name = self._argocd_repo_password_param_name(
                 self.customer_id, self.environment
@@ -1043,7 +989,6 @@ echo "==> ESO installation complete!"
         )
 
         command_id = response["Command"]["CommandId"]
-
         self._save_addon_state("argocd", command_id, instance_id)
 
         return AddonInstallResult(
@@ -1098,7 +1043,6 @@ echo "==> ESO installation complete!"
             output=output or None,
             error=error or None,
         )
-
 
     async def install_all_addons(self) -> AddonInstallResult:
         """Install all addons (Karpenter + ArgoCD) via SSM Run Command."""

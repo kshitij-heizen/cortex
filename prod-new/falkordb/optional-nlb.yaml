@@ -1,0 +1,16 @@
+apiVersion: operations.kubeblocks.io/v1alpha1
+kind: OpsRequest
+metadata:
+  name: falkordb-expose-dedicated
+  namespace: falkordb 
+spec:
+  clusterName: falkordb-prod
+  type: Expose
+  expose:
+  - componentName: falkordb
+    services:
+    - name: internet-access
+      serviceType: LoadBalancer
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+        service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
