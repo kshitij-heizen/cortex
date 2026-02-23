@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: clickhouse
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/opengig/cortex.git
+    targetRevision: kshitij/s3anddb
+    path: prod/clickhouse/helm/clickhouse-chart
+    helm:
+      releaseName: clickhouse
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: clickhouse
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: clickhouse.altinity.com
+      kind: ClickHouseInstallation
+      managedFieldsManagers:
+        - clickhouse-operator
+    - group: clickhouse-keeper.altinity.com
+      kind: ClickHouseKeeperInstallation
+      managedFieldsManagers:
+        - clickhouse-operator

@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: falkordb
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/opengig/cortex.git
+    targetRevision: kshitij/s3anddb
+    path: prod/falkordb/helm/falkor-chart
+    helm:
+      releaseName: falkordb
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: falkordb-cortex
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: apps.kubeblocks.io
+      kind: Cluster
+      jqPathExpressions:
+        - .spec.componentSpecs[].serviceVersion
+        - .spec.componentSpecs[].disableExporter
+        - .spec.componentSpecs[].componentDef
