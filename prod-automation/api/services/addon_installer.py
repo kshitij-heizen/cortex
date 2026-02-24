@@ -722,9 +722,14 @@ fi
 echo "==> Waiting for ESO webhook..."
 kubectl wait --for=condition=available --timeout=120s deployment/external-secrets-webhook -n external-secrets
 
+echo "==> Waiting for ESO CRDs to be established..."
+kubectl wait --for=condition=Established crd clustersecretstores.external-secrets.io --timeout=60s
+kubectl wait --for=condition=Established crd externalsecrets.external-secrets.io --timeout=60s
+
+
 echo "==> Creating ClusterSecretStore..."
 cat <<CSS_EOF | kubectl apply -f -
-apiVersion: external-secrets.io/v1beta1
+apiVersion: external-secrets.io/v1
 kind: ClusterSecretStore
 metadata:
   name: aws-secrets-manager
