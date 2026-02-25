@@ -380,8 +380,12 @@ echo "==> FalkorDB addon installation complete!"
 # FALKORDB SHARED SECRET
 # =============================================================================
 echo "==> Creating FalkorDB shared secret..."
-kubectl create secret generic falkordb-shared-password -n falkordb-shared --from-literal=password=d6c77M05pV --dry-run=client -o yaml | kubectl apply -f -
-kubectl create secret generic falkordb-shared-password -n falkordb-cortexai --from-literal=password=d6c77M05pV --dry-run=client -o yaml | kubectl apply -f -
+FALKORDB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /byoc/$CUSTOMER_ID/cortex-app --region $REGION --query 'SecretString' --output text | jq -r '.FALKORDB_PASSWORD')
+kubectl create namespace falkordb-shared --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace falkordb-cortexai --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic falkordb-shared-password -n falkordb-shared --from-literal=password="$FALKORDB_PASSWORD" --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic falkordb-shared-password -n falkordb-cortexai --from-literal=password="$FALKORDB_PASSWORD" --dry-run=client -o yaml | kubectl apply -f -
+unset FALKORDB_PASSWORD
 echo "==> FalkorDB shared secret created!"
 
 # =============================================================================
@@ -779,6 +783,7 @@ echo "==> ESO installation complete!"
             "",
             f'CLUSTER_NAME="{cluster_name}"',
             f'REGION="{region}"',
+            f'CUSTOMER_ID="{self.customer_id}"',
             "",
             "# Configure kubectl",
             'echo "==> Configuring kubectl for $CLUSTER_NAME in $REGION..."',
