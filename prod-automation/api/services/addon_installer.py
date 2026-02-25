@@ -377,6 +377,14 @@ kubectl get clusterdefinitions.apps.kubeblocks.io | grep falkordb
 echo "==> FalkorDB addon installation complete!"
 
 # =============================================================================
+# FALKORDB SHARED SECRET
+# =============================================================================
+echo "==> Creating FalkorDB shared secret..."
+kubectl create secret generic falkordb-shared-password -n falkordb-shared --from-literal=password=d6c77M05pV --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic falkordb-shared-password -n falkordb-cortexai --from-literal=password=d6c77M05pV --dry-run=client -o yaml | kubectl apply -f -
+echo "==> FalkorDB shared secret created!"
+
+# =============================================================================
 # MILVUS OPERATOR
 # =============================================================================
 echo "==> Installing Milvus Operator..."

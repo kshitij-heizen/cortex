@@ -1,13 +1,16 @@
-organization: cortex
+organization: cortexai
 
 tenantId: tenant-1
 
-namespace: falkordb-cortex
+namespace: falkordb-cortexai
 
 clusterName: falkordb
 
 auth:
-  useSharedSecret: false
+  useSharedSecret: true
+  sharedSecretName: "falkordb-shared-password"
+  sharedSecretNamespace: "falkordb-shared"
+  sharedSecretKey: "password"
 
 ingress:
   enabled: true

@@ -29,7 +29,7 @@ config:
   ORG: "cortexai"
   FERN_SDK_CONVENTION: "snake"
 
-  FALKORDB_HOST: "falkordb-cortex-tenant-1-falkordb-falkordb.falkordb-cortex.svc.cluster.local"
+  FALKORDB_HOST: "falkordb-cortexai-tenant-1-falkordb-falkordb.falkordb-cortexai.svc.cluster.local"
   FALKORDB_PORT: "6379"
   DB_CONNECTIONS: "80"
   FALKOR_ORG_SPECIFIC_CLUSTER: "true"
