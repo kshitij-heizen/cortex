@@ -21,6 +21,8 @@ from api.models import (
     EksConfigResolved,
     KafkaConfigInput,
     KafkaConfigResolved,
+    MongoDBConfigInput,
+    MongoDBConfigResolved,
     KarpenterConfigInput,
     KarpenterConfigResolved,
     KarpenterDisruptionConfig,
@@ -486,6 +488,25 @@ def resolve_kafka_config(
     )
 
 
+def resolve_mongodb_config(
+    input_config: Optional[MongoDBConfigInput],
+) -> Optional[MongoDBConfigResolved]:
+    """Resolve MongoDB configuration with defaults."""
+    if input_config is None:
+        return None
+
+    return MongoDBConfigResolved(
+        custom_mongodb=input_config.custom_mongodb,
+        connection_uri=input_config.connection_uri,
+        organization=input_config.organization,
+        replicas=input_config.replicas,
+        storage_size=input_config.storage_size,
+        cpu=input_config.cpu,
+        memory=input_config.memory,
+        version=input_config.version,
+    )
+
+
 def resolve_customer_config(input_config: CustomerConfigInput) -> CustomerConfigResolved:
     """Transform partial input config into fully-resolved config."""
 
@@ -521,6 +542,7 @@ def resolve_customer_config(input_config: CustomerConfigInput) -> CustomerConfig
 
     addons = resolve_cluster_addons(input_config.addons)
     kafka_config = resolve_kafka_config(input_config.kafka_config)
+    mongodb_config = resolve_mongodb_config(input_config.mongodb_config)
 
     now = datetime.now(timezone.utc)
 
@@ -533,6 +555,7 @@ def resolve_customer_config(input_config: CustomerConfigInput) -> CustomerConfig
         addons=addons,
         eso_secrets=input_config.eso_secrets,
         kafka_config=kafka_config,
+        mongodb_config=mongodb_config,
         tags=global_tags,
         created_at=now,
         updated_at=now,

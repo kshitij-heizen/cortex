@@ -1,0 +1,10 @@
+apiVersion: v2
+name: mongodb
+description: MongoDB via KubeBlocks for cortex platform
+type: application
+version: 1.0.0
+appVersion: "7.0.28"
+keywords:
+  - mongodb
+  - kubeblocks
+  - database

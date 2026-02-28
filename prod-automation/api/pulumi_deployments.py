@@ -246,6 +246,20 @@ class PulumiDeploymentsClient:
             if kafka.password:
                 commands.append(config_set("kafkaPassword", kafka.password, secret=True))
 
+        # MongoDB configuration
+        if config.mongodb_config:
+            mongo = config.mongodb_config
+            commands.append(config_set("mongodbEnabled", "true"))
+            commands.append(config_set("customMongodb", str(mongo.custom_mongodb).lower()))
+            commands.append(config_set("mongodbOrganization", mongo.organization))
+            commands.append(config_set("mongodbReplicas", str(mongo.replicas)))
+            commands.append(config_set("mongodbStorageSize", mongo.storage_size))
+            commands.append(config_set("mongodbCpu", mongo.cpu))
+            commands.append(config_set("mongodbMemory", mongo.memory))
+            commands.append(config_set("mongodbVersion", mongo.version))
+            if mongo.connection_uri:
+                commands.append(config_set("mongodbConnectionUri", mongo.connection_uri, secret=True))
+
         # ESO Secrets – always set so __main__.py require_secret() succeeds; use logical defaults when not provided
         _ESO_DEFAULT_FALKORDB = "changeme"
         _ESO_DEFAULT_MILVUS = "root:Milvus"
@@ -262,6 +276,11 @@ class PulumiDeploymentsClient:
         ))
         commands.append(config_set("esoGoogleApiKey", eso.google_api_key if eso else ""))
         commands.append(config_set("esoGeminiApiKey", eso.gemini_api_key if eso else ""))
+        commands.append(config_set(
+            "esoMongodbPassword",
+            eso.mongodb_password if eso else "",
+            secret=True,
+        ))
 
         return commands
 

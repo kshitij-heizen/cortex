@@ -12,6 +12,7 @@ from api.models import (
     EksConfigResolved,
     KafkaAuthType,
     KafkaConfigResolved,
+    MongoDBConfigResolved,
     KarpenterConfigResolved,
     KarpenterDisruptionConfig,
     KarpenterNodePoolConfig,
@@ -44,6 +45,9 @@ class PulumiCustomerConfig:
 
     # Kafka Configuration (optional)
     kafka_config: Optional[KafkaConfigResolved] = None
+
+    # MongoDB Configuration (optional)
+    mongodb_config: Optional[MongoDBConfigResolved] = None
 
     # Global tags
     tags: dict[str, str] = field(default_factory=dict)
@@ -330,6 +334,23 @@ def _load_kafka_config(config: pulumi.Config) -> Optional[KafkaConfigResolved]:
     )
 
 
+def _load_mongodb_config(config: pulumi.Config) -> Optional[MongoDBConfigResolved]:
+    """Load MongoDB configuration from Pulumi config."""
+    if not _parse_bool(config.get("mongodbEnabled"), False):
+        return None
+
+    return MongoDBConfigResolved(
+        custom_mongodb=_parse_bool(config.get("customMongodb"), True),
+        connection_uri=config.get("mongodbConnectionUri"),
+        organization=config.get("mongodbOrganization") or "cortexai",
+        replicas=_parse_int(config.get("mongodbReplicas"), 1),
+        storage_size=config.get("mongodbStorageSize") or "20Gi",
+        cpu=config.get("mongodbCpu") or "500m",
+        memory=config.get("mongodbMemory") or "1Gi",
+        version=config.get("mongodbVersion") or "7.0.28",
+    )
+
+
 def load_customer_config() -> PulumiCustomerConfig:
     """Load customer configuration from Pulumi config."""
     config = pulumi.Config()
@@ -352,6 +373,7 @@ def load_customer_config() -> PulumiCustomerConfig:
     vpc_config = _load_vpc_config(config)
     eks_config = _load_eks_config(config)
     kafka_config = _load_kafka_config(config)
+    mongodb_config = _load_mongodb_config(config)
 
     # Global tags
     tags: dict[str, str] = {
@@ -373,5 +395,6 @@ def load_customer_config() -> PulumiCustomerConfig:
         vpc_config=vpc_config,
         eks_config=eks_config,
         kafka_config=kafka_config,
+        mongodb_config=mongodb_config,
         tags=tags,
     )

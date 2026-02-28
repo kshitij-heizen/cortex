@@ -389,6 +389,93 @@ unset FALKORDB_PASSWORD
 echo "==> FalkorDB shared secret created!"
 
 # =============================================================================
+# MONGODB ADDON (only when deploying in-cluster)
+# =============================================================================
+if [ "$CUSTOM_MONGODB" = "false" ]; then
+    echo "==> Installing MongoDB KubeBlocks addon..."
+    if helm status kb-addon-mongodb -n kubeblocks &>/dev/null; then
+        echo "==> MongoDB addon already installed, upgrading..."
+        helm upgrade kb-addon-mongodb kubeblocks/mongodb -n kubeblocks
+    else
+        helm install kb-addon-mongodb kubeblocks/mongodb -n kubeblocks
+    fi
+
+    echo "==> Waiting for MongoDB ClusterDefinition..."
+    timeout=120
+    elapsed=0
+    while [ $elapsed -lt $timeout ]; do
+        if kubectl get clusterdefinitions.apps.kubeblocks.io mongodb &>/dev/null; then
+            echo "==> MongoDB ClusterDefinition is ready!"
+            break
+        fi
+        sleep 5
+        elapsed=$((elapsed + 5))
+    done
+    kubectl get clusterdefinitions.apps.kubeblocks.io | grep mongodb
+    echo "==> MongoDB addon installation complete!"
+
+    echo "==> Creating MongoDB shared secret..."
+    MONGODB_NS="mongodb-$MONGODB_ORG"
+    kubectl create namespace "$MONGODB_NS" --dry-run=client -o yaml | kubectl apply -f -
+
+    MONGODB_PASSWORD=$(aws secretsmanager get-secret-value \
+        --secret-id /byoc/$CUSTOMER_ID/cortex-app \
+        --region $REGION \
+        --query 'SecretString' --output text | jq -r '.MONGODB_PASSWORD // empty')
+
+    if [ -n "$MONGODB_PASSWORD" ]; then
+        kubectl create secret generic mongodb-shared-password -n "$MONGODB_NS" \
+            --from-literal=username=root \
+            --from-literal=password="$MONGODB_PASSWORD" \
+            --dry-run=client -o yaml | kubectl apply -f -
+        echo "==> MongoDB shared secret created!"
+    else
+        echo "==> WARNING: MONGODB_PASSWORD not found in Secrets Manager, skipping shared secret"
+    fi
+    unset MONGODB_PASSWORD
+
+    echo "==> Creating MongoDB ArgoCD Application..."
+    cat <<MONGO_APP_EOF | kubectl apply -f -
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mongodb
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/opengig/cortex.git
+    targetRevision: $ARGOCD_BRANCH
+    path: prod/mongodb/helm/mongodb-chart
+    helm:
+      releaseName: mongodb
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: $MONGODB_NS
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: apps.kubeblocks.io
+      kind: Cluster
+      jqPathExpressions:
+        - .spec.componentSpecs[].serviceVersion
+        - .spec.componentSpecs[].disableExporter
+        - .spec.componentSpecs[].componentDef
+MONGO_APP_EOF
+    echo "==> MongoDB ArgoCD Application created!"
+fi
+
+# =============================================================================
 # MILVUS OPERATOR
 # =============================================================================
 echo "==> Installing Milvus Operator..."
@@ -784,6 +871,9 @@ echo "==> ESO installation complete!"
             f'CLUSTER_NAME="{cluster_name}"',
             f'REGION="{region}"',
             f'CUSTOMER_ID="{self.customer_id}"',
+            f'CUSTOM_MONGODB="{str(self.config.mongodb_config.custom_mongodb).lower() if self.config.mongodb_config else "true"}"',
+            f'MONGODB_ORG="{self.config.mongodb_config.organization if self.config.mongodb_config else "cortexai"}"',
+            'ARGOCD_BRANCH="main"',
             "",
             "# Configure kubectl",
             'echo "==> Configuring kubectl for $CLUSTER_NAME in $REGION..."',

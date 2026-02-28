@@ -1,0 +1,22 @@
+organization: cortexai
+namespace: mongodb-cortexai
+clusterName: mongodb
+
+auth:
+  useSharedSecret: true
+  sharedSecretName: "mongodb-shared-password"
+
+version: "7.0.28"
+replicas: 1
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"
+
+storage:
+  storageClassName: gp3
+  size: 20Gi

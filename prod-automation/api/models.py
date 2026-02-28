@@ -654,11 +654,52 @@ class KafkaConfigResolved(BaseModel):
     password: Optional[str] = None
 
 
+class MongoDBConfigInput(BaseModel):
+    """MongoDB configuration input."""
+
+    custom_mongodb: bool = Field(
+        default=True,
+        description="True = customer provides Atlas URI, False = deploy in-cluster via KubeBlocks",
+    )
+    connection_uri: Optional[str] = Field(
+        default=None,
+        description="MongoDB connection URI (required if custom_mongodb=true)",
+    )
+    organization: str = Field(
+        default="cortexai",
+        description="Organization name, used for namespace mongodb-{org}",
+    )
+    replicas: int = Field(
+        default=1,
+        ge=1,
+        le=7,
+        description="Number of MongoDB replicas (1=standalone, 3+=replicaset)",
+    )
+    storage_size: str = Field(default="20Gi", description="Storage size per replica")
+    cpu: str = Field(default="500m", description="CPU request per replica")
+    memory: str = Field(default="1Gi", description="Memory request per replica")
+    version: str = Field(default="7.0.28", description="MongoDB version")
+
+
+class MongoDBConfigResolved(BaseModel):
+    """Fully resolved MongoDB configuration."""
+
+    custom_mongodb: bool
+    connection_uri: Optional[str] = None
+    organization: str
+    replicas: int
+    storage_size: str
+    cpu: str
+    memory: str
+    version: str
+
+
 class EsoSecretsInput(BaseModel):
     """Secrets to store in AWS Secrets Manager via ESO."""
 
     falkordb_password: str = Field(default="", description="FalkorDB password")
     milvus_token: str = Field(default="", description="Milvus auth token")
+    mongodb_password: str = Field(default="", description="MongoDB root password (in-cluster mode)")
     google_api_key: str = Field(default="", description="Google API key")
     gemini_api_key: str = Field(default="", description="Gemini API key")
 
@@ -691,6 +732,8 @@ class CustomerConfigInput(BaseModel):
 
     kafka_config: Optional[KafkaConfigInput] = None
 
+    mongodb_config: Optional[MongoDBConfigInput] = None
+
     tags: dict[str, str] = Field(default_factory=dict)
 
 
@@ -709,6 +752,8 @@ class CustomerConfigResolved(BaseModel):
     eso_secrets: Optional[EsoSecretsInput] = None
 
     kafka_config: Optional[KafkaConfigResolved] = None
+
+    mongodb_config: Optional[MongoDBConfigResolved] = None
 
     tags: dict[str, str]
 

@@ -1,0 +1,36 @@
+apiVersion: apps.kubeblocks.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.clusterName }}-{{ .Values.organization }}
+  namespace: {{ .Values.namespace }}
+spec:
+  terminationPolicy: Delete
+  clusterDef: mongodb
+  topology: replicaset
+  componentSpecs:
+    - name: mongodb
+      serviceVersion: {{ .Values.version | quote }}
+      replicas: {{ .Values.replicas }}
+      {{- if .Values.auth.useSharedSecret }}
+      systemAccounts:
+        - name: root
+          secretRef:
+            name: {{ .Values.auth.sharedSecretName }}
+            namespace: {{ .Values.namespace }}
+      {{- end }}
+      disableExporter: false
+      resources:
+        requests:
+          cpu: {{ .Values.resources.requests.cpu | quote }}
+          memory: {{ .Values.resources.requests.memory | quote }}
+        limits:
+          cpu: {{ .Values.resources.limits.cpu | quote }}
+          memory: {{ .Values.resources.limits.memory | quote }}
+      volumeClaimTemplates:
+        - name: data
+          spec:
+            storageClassName: {{ .Values.storage.storageClassName }}
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: {{ .Values.storage.size }}

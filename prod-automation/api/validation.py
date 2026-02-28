@@ -6,6 +6,7 @@ from api.models import (
     CustomerConfigResolved,
     KafkaAuthType,
     KafkaConfigResolved,
+    MongoDBConfigResolved,
     NatGatewayStrategy,
     SubnetResolved,
     ValidationErrorDetail,
@@ -484,6 +485,35 @@ def validate_kafka_config(
     return errors
 
 
+def validate_mongodb_config(
+    mongodb_config: Optional[MongoDBConfigResolved],
+) -> list[ValidationErrorDetail]:
+    """Validate MongoDB configuration."""
+    errors: list[ValidationErrorDetail] = []
+
+    if mongodb_config is None:
+        return errors
+
+    if mongodb_config.custom_mongodb:
+        if not mongodb_config.connection_uri:
+            errors.append(
+                ValidationErrorDetail(
+                    field="mongodb_config.connection_uri",
+                    message="Connection URI is required when custom_mongodb is true",
+                )
+            )
+    else:
+        if mongodb_config.connection_uri:
+            errors.append(
+                ValidationErrorDetail(
+                    field="mongodb_config.connection_uri",
+                    message="Connection URI should not be set when custom_mongodb is false (built automatically)",
+                )
+            )
+
+    return errors
+
+
 def validate_resolved_config(config: CustomerConfigResolved) -> list[ValidationErrorDetail]:
     """Perform comprehensive validation on a resolved configuration.
 
@@ -509,6 +539,9 @@ def validate_resolved_config(config: CustomerConfigResolved) -> list[ValidationE
 
     # Kafka configuration
     errors.extend(validate_kafka_config(config.kafka_config))
+
+    # MongoDB configuration
+    errors.extend(validate_mongodb_config(config.mongodb_config))
 
     return errors
 

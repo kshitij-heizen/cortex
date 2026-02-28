@@ -540,6 +540,24 @@ def _build_cortex_app_secrets(args: list) -> str:
                 "SCRAM-SHA-512" if kafka_cfg.auth_type.value == "SCRAM" else "PLAIN"
             )
 
+    if config.mongodb_config:
+        mongo = config.mongodb_config
+        if mongo.custom_mongodb:
+            secrets["MONGODB_CLUSTER_CONNECTION_URI"] = mongo.connection_uri or ""
+        else:
+            mongo_pw_idx = 13
+            if config.kafka_config and not config.kafka_config.custom_kafka:
+                mongo_pw_idx += 1
+            mongo_pw = args[mongo_pw_idx] if len(args) > mongo_pw_idx else ""
+            mongo_host = (
+                f"mongodb-{mongo.organization}-mongodb"
+                f".mongodb-{mongo.organization}.svc.cluster.local"
+            )
+            secrets["MONGODB_CLUSTER_CONNECTION_URI"] = (
+                f"mongodb://root:{mongo_pw}@{mongo_host}:27017/admin?authSource=admin"
+            )
+            secrets["MONGODB_PASSWORD"] = mongo_pw
+
     return json.dumps(secrets)
 
 
@@ -561,6 +579,9 @@ _app_secret_args = [
 
 if kafka_bootstrap_output:
     _app_secret_args.append(kafka_bootstrap_output)
+
+if config.mongodb_config and not config.mongodb_config.custom_mongodb:
+    _app_secret_args.append(pulumi_config.require_secret("esoMongodbPassword"))
 
 aws.secretsmanager.SecretVersion(
     f"{config.customer_id}-cortex-app-secrets-version",
@@ -607,6 +628,24 @@ def _build_cortex_ingestion_secrets(args: list) -> str:
                 "SCRAM-SHA-512" if kafka_cfg.auth_type.value == "SCRAM" else "PLAIN"
             )
 
+    if config.mongodb_config:
+        mongo = config.mongodb_config
+        if mongo.custom_mongodb:
+            secrets["MONGODB_CLUSTER_CONNECTION_URI"] = mongo.connection_uri or ""
+        else:
+            mongo_pw_idx = 7
+            if config.kafka_config and not config.kafka_config.custom_kafka:
+                mongo_pw_idx += 1
+            mongo_pw = args[mongo_pw_idx] if len(args) > mongo_pw_idx else ""
+            mongo_host = (
+                f"mongodb-{mongo.organization}-mongodb"
+                f".mongodb-{mongo.organization}.svc.cluster.local"
+            )
+            secrets["MONGODB_CLUSTER_CONNECTION_URI"] = (
+                f"mongodb://root:{mongo_pw}@{mongo_host}:27017/admin?authSource=admin"
+            )
+            secrets["MONGODB_PASSWORD"] = mongo_pw
+
     return json.dumps(secrets)
 
 
@@ -622,6 +661,9 @@ _ingestion_secret_args = [
 
 if kafka_bootstrap_output:
     _ingestion_secret_args.append(kafka_bootstrap_output)
+
+if config.mongodb_config and not config.mongodb_config.custom_mongodb:
+    _ingestion_secret_args.append(pulumi_config.require_secret("esoMongodbPassword"))
 
 aws.secretsmanager.SecretVersion(
     f"{config.customer_id}-cortex-ingestion-secrets-version",
@@ -739,6 +781,17 @@ if config.kafka_config:
             "auth_type": config.kafka_config.auth_type.value,
             "topic": config.kafka_config.topic,
             "group_id": config.kafka_config.group_id,
+        },
+    )
+
+if config.mongodb_config:
+    pulumi.export(
+        "mongodb_config_summary",
+        {
+            "custom_mongodb": config.mongodb_config.custom_mongodb,
+            "organization": config.mongodb_config.organization,
+            "replicas": config.mongodb_config.replicas,
+            "version": config.mongodb_config.version,
         },
     )
 
