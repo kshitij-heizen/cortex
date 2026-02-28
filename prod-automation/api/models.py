@@ -596,6 +596,64 @@ class AddonInstallResult(BaseModel):
     error: Optional[str] = None
 
 
+class KafkaAuthType(str, Enum):
+    """Kafka authentication type."""
+
+    IAM = "IAM"
+    SCRAM = "SCRAM"
+    PLAIN = "PLAIN"
+
+
+class KafkaConfigInput(BaseModel):
+    """Kafka configuration input."""
+
+    custom_kafka: bool = Field(
+        default=True,
+        description="True = customer provides Kafka, False = Pulumi creates MSK Serverless",
+    )
+    auth_type: KafkaAuthType = Field(
+        default=KafkaAuthType.IAM,
+        description="Authentication type for Kafka",
+    )
+    bootstrap_servers: Optional[str] = Field(
+        default=None,
+        description="Bootstrap servers (required if custom_kafka=true)",
+    )
+    cluster_arn: Optional[str] = Field(
+        default=None,
+        description="MSK cluster ARN (optional, for scoping IAM permissions)",
+    )
+    topic: str = Field(
+        default="document-ingestion",
+        description="Kafka topic name",
+    )
+    group_id: str = Field(
+        default="ingestion-service-group",
+        description="Kafka consumer group ID",
+    )
+    username: Optional[str] = Field(
+        default=None,
+        description="Kafka username (required if auth_type=SCRAM or PLAIN)",
+    )
+    password: Optional[str] = Field(
+        default=None,
+        description="Kafka password (required if auth_type=SCRAM or PLAIN)",
+    )
+
+
+class KafkaConfigResolved(BaseModel):
+    """Fully resolved Kafka configuration."""
+
+    custom_kafka: bool
+    auth_type: KafkaAuthType
+    bootstrap_servers: Optional[str] = None
+    cluster_arn: Optional[str] = None
+    topic: str
+    group_id: str
+    username: Optional[str] = None
+    password: Optional[str] = None
+
+
 class EsoSecretsInput(BaseModel):
     """Secrets to store in AWS Secrets Manager via ESO."""
 
@@ -631,6 +689,8 @@ class CustomerConfigInput(BaseModel):
 
     eso_secrets: Optional[EsoSecretsInput] = None
 
+    kafka_config: Optional[KafkaConfigInput] = None
+
     tags: dict[str, str] = Field(default_factory=dict)
 
 
@@ -647,6 +707,8 @@ class CustomerConfigResolved(BaseModel):
     addons: Optional[ClusterAddonsResolved] = None
 
     eso_secrets: Optional[EsoSecretsInput] = None
+
+    kafka_config: Optional[KafkaConfigResolved] = None
 
     tags: dict[str, str]
 

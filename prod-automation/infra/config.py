@@ -10,6 +10,8 @@ from api.models import (
     EksAccessResolved,
     EksAddonsResolved,
     EksConfigResolved,
+    KafkaAuthType,
+    KafkaConfigResolved,
     KarpenterConfigResolved,
     KarpenterDisruptionConfig,
     KarpenterNodePoolConfig,
@@ -39,6 +41,9 @@ class PulumiCustomerConfig:
 
     # EKS Configuration (resolved)
     eks_config: EksConfigResolved
+
+    # Kafka Configuration (optional)
+    kafka_config: Optional[KafkaConfigResolved] = None
 
     # Global tags
     tags: dict[str, str] = field(default_factory=dict)
@@ -301,6 +306,30 @@ def _load_eks_config(config: pulumi.Config) -> EksConfigResolved:
     )
 
 
+def _load_kafka_config(config: pulumi.Config) -> Optional[KafkaConfigResolved]:
+    """Load Kafka configuration from Pulumi config.
+
+    Returns None if no Kafka config is set (kafkaTopic not present).
+    """
+    if not config.get("kafkaTopic"):
+        return None
+
+    custom_kafka = _parse_bool(config.get("customKafka"), True)
+    auth_type_str = config.get("kafkaAuthType") or "IAM"
+    auth_type = KafkaAuthType(auth_type_str)
+
+    return KafkaConfigResolved(
+        custom_kafka=custom_kafka,
+        auth_type=auth_type,
+        bootstrap_servers=config.get("kafkaBootstrapServers"),
+        cluster_arn=config.get("kafkaClusterArn"),
+        topic=config.get("kafkaTopic") or "document-ingestion",
+        group_id=config.get("kafkaGroupId") or "ingestion-service-group",
+        username=config.get("kafkaUsername"),
+        password=config.get("kafkaPassword"),
+    )
+
+
 def load_customer_config() -> PulumiCustomerConfig:
     """Load customer configuration from Pulumi config."""
     config = pulumi.Config()
@@ -322,6 +351,7 @@ def load_customer_config() -> PulumiCustomerConfig:
     # Load VPC and EKS configs
     vpc_config = _load_vpc_config(config)
     eks_config = _load_eks_config(config)
+    kafka_config = _load_kafka_config(config)
 
     # Global tags
     tags: dict[str, str] = {
@@ -342,5 +372,6 @@ def load_customer_config() -> PulumiCustomerConfig:
         availability_zones=availability_zones,
         vpc_config=vpc_config,
         eks_config=eks_config,
+        kafka_config=kafka_config,
         tags=tags,
     )

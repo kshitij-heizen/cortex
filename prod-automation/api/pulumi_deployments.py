@@ -230,6 +230,22 @@ class PulumiDeploymentsClient:
         else:
             commands.append(config_set("argoCDEnabled", "false"))
 
+        # Kafka configuration
+        if config.kafka_config:
+            kafka = config.kafka_config
+            commands.append(config_set("customKafka", str(kafka.custom_kafka).lower()))
+            commands.append(config_set("kafkaAuthType", kafka.auth_type.value))
+            commands.append(config_set("kafkaTopic", kafka.topic))
+            commands.append(config_set("kafkaGroupId", kafka.group_id))
+            if kafka.bootstrap_servers:
+                commands.append(config_set("kafkaBootstrapServers", kafka.bootstrap_servers))
+            if kafka.cluster_arn:
+                commands.append(config_set("kafkaClusterArn", kafka.cluster_arn))
+            if kafka.username:
+                commands.append(config_set("kafkaUsername", kafka.username, secret=True))
+            if kafka.password:
+                commands.append(config_set("kafkaPassword", kafka.password, secret=True))
+
         # ESO Secrets – always set so __main__.py require_secret() succeeds; use logical defaults when not provided
         _ESO_DEFAULT_FALKORDB = "changeme"
         _ESO_DEFAULT_MILVUS = "root:Milvus"

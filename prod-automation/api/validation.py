@@ -4,6 +4,8 @@ from typing import Optional
 from api.models import (
     CustomerConfigInput,
     CustomerConfigResolved,
+    KafkaAuthType,
+    KafkaConfigResolved,
     NatGatewayStrategy,
     SubnetResolved,
     ValidationErrorDetail,
@@ -430,6 +432,58 @@ def validate_semantic_consistency(
     return errors
 
 
+def validate_kafka_config(
+    kafka_config: Optional[KafkaConfigResolved],
+) -> list[ValidationErrorDetail]:
+    """Validate Kafka configuration."""
+    errors: list[ValidationErrorDetail] = []
+
+    if kafka_config is None:
+        return errors
+
+    if kafka_config.custom_kafka and not kafka_config.bootstrap_servers:
+        errors.append(
+            ValidationErrorDetail(
+                field="kafka_config.bootstrap_servers",
+                message="Bootstrap servers are required when custom_kafka is true",
+            )
+        )
+
+    if kafka_config.auth_type in (KafkaAuthType.SCRAM, KafkaAuthType.PLAIN):
+        if not kafka_config.username:
+            errors.append(
+                ValidationErrorDetail(
+                    field="kafka_config.username",
+                    message=f"Username is required for {kafka_config.auth_type.value} authentication",
+                )
+            )
+        if not kafka_config.password:
+            errors.append(
+                ValidationErrorDetail(
+                    field="kafka_config.password",
+                    message=f"Password is required for {kafka_config.auth_type.value} authentication",
+                )
+            )
+
+    if not kafka_config.topic:
+        errors.append(
+            ValidationErrorDetail(
+                field="kafka_config.topic",
+                message="Kafka topic is required",
+            )
+        )
+
+    if not kafka_config.group_id:
+        errors.append(
+            ValidationErrorDetail(
+                field="kafka_config.group_id",
+                message="Kafka group ID is required",
+            )
+        )
+
+    return errors
+
+
 def validate_resolved_config(config: CustomerConfigResolved) -> list[ValidationErrorDetail]:
     """Perform comprehensive validation on a resolved configuration.
 
@@ -452,6 +506,9 @@ def validate_resolved_config(config: CustomerConfigResolved) -> list[ValidationE
 
     # Semantic consistency
     errors.extend(validate_semantic_consistency(config))
+
+    # Kafka configuration
+    errors.extend(validate_kafka_config(config.kafka_config))
 
     return errors
 

@@ -6,6 +6,7 @@ import pulumi_aws as aws
 from infra.components.access_node import AccessNode
 from infra.components.eks import EksCluster
 from infra.components.iam import EksIamRoles
+from infra.components.kafka import KafkaCluster
 from infra.components.networking import Networking
 from infra.config import load_customer_config
 from infra.providers import create_customer_aws_provider
@@ -138,11 +139,7 @@ aws.s3.BucketPublicAccessBlock(
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
-
-# =============================================================================
 # DynamoDB Tables
-# Schemas verified against production AWS tables (2026-02-20).
-# =============================================================================
 
 _env = config.environment  # "prod" or "staging"
 _env_us = f"_{_env}"  # "_prod"
@@ -277,8 +274,7 @@ user_details_table = aws.dynamodb.Table(
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
-# --- users_to_sign_up_{env} ---
-# PK=email
+
 users_to_sign_up_table = aws.dynamodb.Table(
     f"{config.customer_id}-users-to-sign-up",
     name=f"users_to_sign_up{_env_us}",
@@ -291,8 +287,7 @@ users_to_sign_up_table = aws.dynamodb.Table(
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
-# --- tenant-id-mapping-{env} ---
-# PK=Organisation_tenant_id, SK=Organisation, GSI
+
 tenant_mapping_table = aws.dynamodb.Table(
     f"{config.customer_id}-tenant-id-mapping",
     name=f"tenant-id-mapping{_env_ds}",
@@ -315,8 +310,7 @@ tenant_mapping_table = aws.dynamodb.Table(
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
-# --- token_bucket_rate_limiter ---
-# PK=pk, TTL on expires_at
+
 token_bucket_table = aws.dynamodb.Table(
     f"{config.customer_id}-token-bucket-rate-limiter",
     name="token_bucket_rate_limiter",
@@ -333,7 +327,6 @@ token_bucket_table = aws.dynamodb.Table(
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
-# Collect all table ARNs (including GSI ARNs) for IAM policy
 _all_table_arns = [
     cortex_users_table.arn,
     api_keys_table.arn,
@@ -346,66 +339,120 @@ _all_table_arns = [
 ]
 
 
-# =============================================================================
+# Kafka / MSK (conditional)
+kafka_cluster = None
+kafka_bootstrap_output: pulumi.Output[str] | None = None
+
+if config.kafka_config and not config.kafka_config.custom_kafka:
+    kafka_cluster = KafkaCluster(
+        name=config.customer_id,
+        vpc_id=networking.vpc_id,
+        private_subnet_ids=networking.private_subnet_ids,
+        cluster_security_group_id=eks.cluster_security_group_id,
+        region=config.aws_region,
+        provider=aws_provider,
+        tags=config.tags,
+        opts=pulumi.ResourceOptions(depends_on=[networking, eks]),
+    )
+
+    kafka_bootstrap_output = kafka_cluster.cluster_arn.apply(
+        lambda arn: aws.msk.get_bootstrap_brokers(
+            cluster_arn=arn,
+            opts=pulumi.InvokeOptions(provider=aws_provider),
+        ).bootstrap_brokers_sasl_iam
+    )
+
 # IAM - Cortex App Role (IRSA) with fixed name for predictable ARN
-# =============================================================================
+def _build_cortex_app_policy(args: list) -> str:
+    """Build the cortex-app IAM policy with conditional Kafka permissions."""
+    doc_bucket_arn = args[0]
+    src_bucket_arn = args[1]
+    table_arns = args[2:10]
+
+    statements = [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:ListBucket",
+            ],
+            "Resource": [
+                doc_bucket_arn,
+                f"{doc_bucket_arn}/*",
+                src_bucket_arn,
+                f"{src_bucket_arn}/*",
+            ],
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+                "dynamodb:BatchGetItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:DescribeTable",
+                "dynamodb:CreateTable",
+                "dynamodb:UpdateTable",
+                "dynamodb:DescribeTimeToLive",
+                "dynamodb:UpdateTimeToLive",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:ListTagsOfResource",
+            ],
+            "Resource": [arn for base in table_arns for arn in (base, f"{base}/index/*")],
+        },
+    ]
+
+    if config.kafka_config and config.kafka_config.auth_type.value == "IAM":
+        kafka_resource = "*"
+        if config.kafka_config.cluster_arn:
+            kafka_resource = config.kafka_config.cluster_arn
+        elif len(args) > 10 and args[10]:
+            kafka_resource = args[10]
+
+        kafka_resources = (
+            [kafka_resource, f"{kafka_resource}/*"] if kafka_resource != "*" else ["*"]
+        )
+
+        statements.append(
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "kafka-cluster:Connect",
+                    "kafka-cluster:DescribeTopic",
+                    "kafka-cluster:CreateTopic",
+                    "kafka-cluster:ReadData",
+                    "kafka-cluster:WriteData",
+                    "kafka-cluster:DescribeGroup",
+                    "kafka-cluster:AlterGroup",
+                ],
+                "Resource": kafka_resources,
+            }
+        )
+
+    return json.dumps({"Version": "2012-10-17", "Statement": statements})
+
+
+_policy_args: list[pulumi.Output] = [
+    documents_bucket.arn,
+    local_sources_bucket.arn,
+    *_all_table_arns,
+]
+
+if kafka_cluster:
+    _policy_args.append(kafka_cluster.cluster_arn)
 
 cortex_app_policy = aws.iam.Policy(
     f"{config.customer_id}-cortex-app-policy",
-    policy=pulumi.Output.all(
-        documents_bucket.arn,
-        local_sources_bucket.arn,
-        *_all_table_arns,
-    ).apply(
-        lambda args: json.dumps(
-            {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Action": [
-                            "s3:GetObject",
-                            "s3:PutObject",
-                            "s3:DeleteObject",
-                            "s3:ListBucket",
-                        ],
-                        "Resource": [
-                            args[0],
-                            f"{args[0]}/*",
-                            args[1],
-                            f"{args[1]}/*",
-                        ],
-                    },
-                    {
-                        "Effect": "Allow",
-                        "Action": [
-                            "dynamodb:GetItem",
-                            "dynamodb:PutItem",
-                            "dynamodb:UpdateItem",
-                            "dynamodb:DeleteItem",
-                            "dynamodb:Query",
-                            "dynamodb:Scan",
-                            "dynamodb:BatchGetItem",
-                            "dynamodb:BatchWriteItem",
-                            "dynamodb:DescribeTable",
-                            "dynamodb:CreateTable",
-                            "dynamodb:UpdateTable",
-                            "dynamodb:DescribeTimeToLive",
-                            "dynamodb:UpdateTimeToLive",
-                            "dynamodb:ConditionCheckItem",
-                            "dynamodb:ListTagsOfResource",
-                        ],
-                        # Table ARNs + index ARNs (table/*/index/*)
-                        "Resource": [arn for base in args[2:] for arn in (base, f"{base}/index/*")],
-                    },
-                ],
-            }
-        )
-    ),
+    policy=pulumi.Output.all(*_policy_args).apply(_build_cortex_app_policy),
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
-# Fixed role name so the ARN is predictable for helm values
 _cortex_app_role_name = f"{config.customer_id}-cortex-app-role"
 
 cortex_app_role = aws.iam.Role(
@@ -443,10 +490,7 @@ aws.iam.RolePolicyAttachment(
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
-
-# =============================================================================
 # Secrets Manager - cortex-app and cortex-ingestion secrets
-# =============================================================================
 
 cortex_app_secret = aws.secretsmanager.Secret(
     f"{config.customer_id}-cortex-app-secrets",
@@ -458,44 +502,70 @@ cortex_app_secret = aws.secretsmanager.Secret(
 _eso_google_key = pulumi_config.get("esoGoogleApiKey") or ""
 _eso_gemini_key = pulumi_config.get("esoGeminiApiKey") or ""
 
+
+def _build_cortex_app_secrets(args: list) -> str:
+    """Build cortex-app secrets JSON with conditional Kafka fields."""
+    secrets = {
+        "FALKORDB_PASSWORD": args[0],
+        "MILVUS_TOKEN": args[1],
+        "GOOGLE_API_KEY": _eso_google_key,
+        "GEMINI_API_KEY": _eso_gemini_key,
+        "MINIO_BUCKET": args[2],
+        "CORTEX_LOCAL_SOURCES_BUCKET_NAME": args[3],
+        "NEXTAUTH_TABLE_NAME": args[4],
+        "CORTEX_API_KEYS_TABLE_NAME": args[5],
+        "TENANT_ID_MAPPING_TABLE_NAME": args[6],
+        "CORTEX_APP_ROLE_ARN": args[7],
+        "USER_METADATA_TABLE_NAME": args[8],
+        "USER_INDEXED_DATA_TABLE": args[9],
+        "USER_DETAILS_TABLE_NAME": args[10],
+        "USERS_TO_SIGN_UP_TABLE_NAME": args[11],
+        "TOKEN_BUCKET_TABLE_NAME": args[12],
+    }
+
+    if config.kafka_config:
+        kafka_cfg = config.kafka_config
+        kafka_bootstrap = kafka_cfg.bootstrap_servers or ""
+        if not kafka_cfg.custom_kafka and len(args) > 13 and args[13]:
+            kafka_bootstrap = args[13]
+
+        secrets["KAFKA_BOOTSTRAP_SERVERS"] = kafka_bootstrap
+        secrets["KAFKA_TOPIC"] = kafka_cfg.topic
+        secrets["KAFKA_GROUP_ID"] = kafka_cfg.group_id
+
+        if kafka_cfg.auth_type.value in ("SCRAM", "PLAIN"):
+            secrets["KAFKA_USERNAME"] = kafka_cfg.username or ""
+            secrets["KAFKA_PASSWORD"] = kafka_cfg.password or ""
+            secrets["KAFKA_SASL_MECHANISM"] = (
+                "SCRAM-SHA-512" if kafka_cfg.auth_type.value == "SCRAM" else "PLAIN"
+            )
+
+    return json.dumps(secrets)
+
+
+_app_secret_args = [
+    pulumi_config.require_secret("esoFalkordbPassword"),
+    pulumi_config.require_secret("esoMilvusToken"),
+    documents_bucket.bucket,
+    local_sources_bucket.bucket,
+    cortex_users_table.name,
+    api_keys_table.name,
+    tenant_mapping_table.name,
+    cortex_app_role.arn,
+    user_metadata_table.name,
+    user_indexed_data_table.name,
+    user_details_table.name,
+    users_to_sign_up_table.name,
+    token_bucket_table.name,
+]
+
+if kafka_bootstrap_output:
+    _app_secret_args.append(kafka_bootstrap_output)
+
 aws.secretsmanager.SecretVersion(
     f"{config.customer_id}-cortex-app-secrets-version",
     secret_id=cortex_app_secret.id,
-    secret_string=pulumi.Output.all(
-        pulumi_config.require_secret("esoFalkordbPassword"),
-        pulumi_config.require_secret("esoMilvusToken"),
-        documents_bucket.bucket,
-        local_sources_bucket.bucket,
-        cortex_users_table.name,
-        api_keys_table.name,
-        tenant_mapping_table.name,
-        cortex_app_role.arn,
-        user_metadata_table.name,
-        user_indexed_data_table.name,
-        user_details_table.name,
-        users_to_sign_up_table.name,
-        token_bucket_table.name,
-    ).apply(
-        lambda args: json.dumps(
-            {
-                "FALKORDB_PASSWORD": args[0],
-                "MILVUS_TOKEN": args[1],
-                "GOOGLE_API_KEY": _eso_google_key,
-                "GEMINI_API_KEY": _eso_gemini_key,
-                "MINIO_BUCKET": args[2],
-                "CORTEX_LOCAL_SOURCES_BUCKET_NAME": args[3],
-                "NEXTAUTH_TABLE_NAME": args[4],
-                "CORTEX_API_KEYS_TABLE_NAME": args[5],
-                "TENANT_ID_MAPPING_TABLE_NAME": args[6],
-                "CORTEX_APP_ROLE_ARN": args[7],
-                "USER_METADATA_TABLE_NAME": args[8],
-                "USER_INDEXED_DATA_TABLE": args[9],
-                "USER_DETAILS_TABLE_NAME": args[10],
-                "USERS_TO_SIGN_UP_TABLE_NAME": args[11],
-                "TOKEN_BUCKET_TABLE_NAME": args[12],
-            }
-        )
-    ),
+    secret_string=pulumi.Output.all(*_app_secret_args).apply(_build_cortex_app_secrets),
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
@@ -506,39 +576,63 @@ cortex_ingestion_secret = aws.secretsmanager.Secret(
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
+def _build_cortex_ingestion_secrets(args: list) -> str:
+    """Build cortex-ingestion secrets JSON with conditional Kafka fields."""
+    secrets = {
+        "FALKORDB_PASSWORD": args[0],
+        "MILVUS_TOKEN": args[1],
+        "GOOGLE_API_KEY": _eso_google_key,
+        "GEMINI_API_KEY": _eso_gemini_key,
+        "MINIO_BUCKET": args[2],
+        "CORTEX_API_KEYS_TABLE_NAME": args[3],
+        "CORTEX_APP_ROLE_ARN": args[4],
+        "USER_INDEXED_DATA_TABLE": args[5],
+        "TOKEN_BUCKET_TABLE_NAME": args[6],
+    }
+
+    if config.kafka_config:
+        kafka_cfg = config.kafka_config
+        kafka_bootstrap = kafka_cfg.bootstrap_servers or ""
+        if not kafka_cfg.custom_kafka and len(args) > 7 and args[7]:
+            kafka_bootstrap = args[7]
+
+        secrets["KAFKA_BOOTSTRAP_SERVERS"] = kafka_bootstrap
+        secrets["KAFKA_TOPIC"] = kafka_cfg.topic
+        secrets["KAFKA_GROUP_ID"] = kafka_cfg.group_id
+
+        if kafka_cfg.auth_type.value in ("SCRAM", "PLAIN"):
+            secrets["KAFKA_USERNAME"] = kafka_cfg.username or ""
+            secrets["KAFKA_PASSWORD"] = kafka_cfg.password or ""
+            secrets["KAFKA_SASL_MECHANISM"] = (
+                "SCRAM-SHA-512" if kafka_cfg.auth_type.value == "SCRAM" else "PLAIN"
+            )
+
+    return json.dumps(secrets)
+
+
+_ingestion_secret_args = [
+    pulumi_config.require_secret("esoFalkordbPassword"),
+    pulumi_config.require_secret("esoMilvusToken"),
+    documents_bucket.bucket,
+    api_keys_table.name,
+    cortex_app_role.arn,
+    user_indexed_data_table.name,
+    token_bucket_table.name,
+]
+
+if kafka_bootstrap_output:
+    _ingestion_secret_args.append(kafka_bootstrap_output)
+
 aws.secretsmanager.SecretVersion(
     f"{config.customer_id}-cortex-ingestion-secrets-version",
     secret_id=cortex_ingestion_secret.id,
-    secret_string=pulumi.Output.all(
-        pulumi_config.require_secret("esoFalkordbPassword"),
-        pulumi_config.require_secret("esoMilvusToken"),
-        documents_bucket.bucket,
-        api_keys_table.name,
-        cortex_app_role.arn,
-        user_indexed_data_table.name,
-        token_bucket_table.name,
-    ).apply(
-        lambda args: json.dumps(
-            {
-                "FALKORDB_PASSWORD": args[0],
-                "MILVUS_TOKEN": args[1],
-                "GOOGLE_API_KEY": _eso_google_key,
-                "GEMINI_API_KEY": _eso_gemini_key,
-                "MINIO_BUCKET": args[2],
-                "CORTEX_API_KEYS_TABLE_NAME": args[3],
-                "CORTEX_APP_ROLE_ARN": args[4],
-                "USER_INDEXED_DATA_TABLE": args[5],
-                "TOKEN_BUCKET_TABLE_NAME": args[6],
-            }
-        )
+    secret_string=pulumi.Output.all(*_ingestion_secret_args).apply(
+        _build_cortex_ingestion_secrets
     ),
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
-
-# =============================================================================
 # Access Node (SSM)
-# =============================================================================
 
 access_node = None
 if config.eks_config.access.ssm_access_node and config.eks_config.access.ssm_access_node.enabled:
@@ -631,6 +725,22 @@ pulumi.export("tenant_mapping_table_name", tenant_mapping_table.name)
 pulumi.export("token_bucket_table_name", token_bucket_table.name)
 pulumi.export("cortex_app_role_arn", cortex_app_role.arn)
 pulumi.export("cortex_app_role_name", cortex_app_role.name)
+
+if kafka_cluster:
+    pulumi.export("msk_cluster_arn", kafka_cluster.cluster_arn)
+if kafka_bootstrap_output:
+    pulumi.export("msk_bootstrap_brokers", kafka_bootstrap_output)
+
+if config.kafka_config:
+    pulumi.export(
+        "kafka_config_summary",
+        {
+            "custom_kafka": config.kafka_config.custom_kafka,
+            "auth_type": config.kafka_config.auth_type.value,
+            "topic": config.kafka_config.topic,
+            "group_id": config.kafka_config.group_id,
+        },
+    )
 
 pulumi.export(
     "config_summary",

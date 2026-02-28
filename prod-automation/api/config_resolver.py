@@ -19,6 +19,8 @@ from api.models import (
     EksAddonsResolved,
     EksConfigInput,
     EksConfigResolved,
+    KafkaConfigInput,
+    KafkaConfigResolved,
     KarpenterConfigInput,
     KarpenterConfigResolved,
     KarpenterDisruptionConfig,
@@ -465,6 +467,25 @@ def resolve_cluster_addons(
     return ClusterAddonsResolved(argocd=resolve_argocd_addon(argocd_input))
 
 
+def resolve_kafka_config(
+    input_config: Optional[KafkaConfigInput],
+) -> Optional[KafkaConfigResolved]:
+    """Resolve Kafka configuration with defaults."""
+    if input_config is None:
+        return None
+
+    return KafkaConfigResolved(
+        custom_kafka=input_config.custom_kafka,
+        auth_type=input_config.auth_type,
+        bootstrap_servers=input_config.bootstrap_servers,
+        cluster_arn=input_config.cluster_arn,
+        topic=input_config.topic,
+        group_id=input_config.group_id,
+        username=input_config.username,
+        password=input_config.password,
+    )
+
+
 def resolve_customer_config(input_config: CustomerConfigInput) -> CustomerConfigResolved:
     """Transform partial input config into fully-resolved config."""
 
@@ -499,6 +520,7 @@ def resolve_customer_config(input_config: CustomerConfigInput) -> CustomerConfig
     )
 
     addons = resolve_cluster_addons(input_config.addons)
+    kafka_config = resolve_kafka_config(input_config.kafka_config)
 
     now = datetime.now(timezone.utc)
 
@@ -510,6 +532,7 @@ def resolve_customer_config(input_config: CustomerConfigInput) -> CustomerConfig
         eks_config=eks_config,
         addons=addons,
         eso_secrets=input_config.eso_secrets,
+        kafka_config=kafka_config,
         tags=global_tags,
         created_at=now,
         updated_at=now,
