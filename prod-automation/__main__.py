@@ -387,6 +387,13 @@ cortex_app_policy = aws.iam.Policy(
                             "dynamodb:Scan",
                             "dynamodb:BatchGetItem",
                             "dynamodb:BatchWriteItem",
+                            "dynamodb:DescribeTable",
+                            "dynamodb:CreateTable",
+                            "dynamodb:UpdateTable",
+                            "dynamodb:DescribeTimeToLive",
+                            "dynamodb:UpdateTimeToLive",
+                            "dynamodb:ConditionCheckItem",
+                            "dynamodb:ListTagsOfResource",
                         ],
                         # Table ARNs + index ARNs (table/*/index/*)
                         "Resource": [arn for base in args[2:] for arn in (base, f"{base}/index/*")],

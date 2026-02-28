@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/opengig/cortex.git
-    targetRevision: kshitij/s3anddb
+    targetRevision: main
     path: prod/vector_dev/helm/vector-chart
     helm:
       releaseName: vector

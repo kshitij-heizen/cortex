@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/opengig/cortex.git
-    targetRevision: kshitij/s3anddb
+    targetRevision: main
     path: prod/falkordb/helm/falkor-chart
     helm:
       releaseName: falkordb

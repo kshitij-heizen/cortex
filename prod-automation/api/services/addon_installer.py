@@ -680,7 +680,7 @@ echo "==> cert-manager installation complete!"
                         "  project: default",
                         "  source:",
                         f"    repoURL: {repo.url}",
-                        "    targetRevision: kshitij/s3anddb",
+                        "    targetRevision: main",
                         f"    path: {argocd_config.root_app_path}",
                         "    directory:",
                         "      recurse: true",
