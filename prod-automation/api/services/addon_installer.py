@@ -414,7 +414,7 @@ if [ "$CUSTOM_MONGODB" = "false" ]; then
     kubectl get clusterdefinitions.apps.kubeblocks.io | grep mongodb
     echo "==> MongoDB addon installation complete!"
 
-    echo "==> Creating MongoDB shared secret..."
+    echo "==> Creating MongoDB namespace and shared secret..."
     MONGODB_NS="mongodb-$MONGODB_ORG"
     kubectl create namespace "$MONGODB_NS" --dry-run=client -o yaml | kubectl apply -f -
 
@@ -434,45 +434,59 @@ if [ "$CUSTOM_MONGODB" = "false" ]; then
     fi
     unset MONGODB_PASSWORD
 
-    echo "==> Creating MongoDB ArgoCD Application..."
-    cat <<MONGO_APP_EOF | kubectl apply -f -
-apiVersion: argoproj.io/v1alpha1
-kind: Application
+    echo "==> Creating MongoDB KubeBlocks Cluster..."
+    cat <<MONGO_CLUSTER_EOF | kubectl apply -f -
+apiVersion: apps.kubeblocks.io/v1
+kind: Cluster
 metadata:
-  name: mongodb
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+  name: mongodb-$MONGODB_ORG
+  namespace: $MONGODB_NS
 spec:
-  project: default
-  source:
-    repoURL: https://github.com/opengig/cortex.git
-    targetRevision: $ARGOCD_BRANCH
-    path: prod/mongodb/helm/mongodb-chart
-    helm:
-      releaseName: mongodb
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: $MONGODB_NS
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
-      - RespectIgnoreDifferences=true
-  ignoreDifferences:
-    - group: apps.kubeblocks.io
-      kind: Cluster
-      jqPathExpressions:
-        - .spec.componentSpecs[].serviceVersion
-        - .spec.componentSpecs[].disableExporter
-        - .spec.componentSpecs[].componentDef
-MONGO_APP_EOF
-    echo "==> MongoDB ArgoCD Application created!"
+  terminationPolicy: Delete
+  clusterDef: mongodb
+  topology: replicaset
+  componentSpecs:
+    - name: mongodb
+      serviceVersion: "$MONGODB_VERSION"
+      replicas: $MONGODB_REPLICAS
+      systemAccounts:
+        - name: root
+          secretRef:
+            name: mongodb-shared-password
+            namespace: $MONGODB_NS
+      disableExporter: false
+      resources:
+        requests:
+          cpu: "$MONGODB_CPU"
+          memory: "$MONGODB_MEMORY"
+        limits:
+          cpu: "$MONGODB_CPU"
+          memory: "$MONGODB_MEMORY"
+      volumeClaimTemplates:
+        - name: data
+          spec:
+            storageClassName: gp3
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: $MONGODB_STORAGE_SIZE
+MONGO_CLUSTER_EOF
+
+    echo "==> Waiting for MongoDB Cluster to be Running..."
+    timeout=300
+    elapsed=0
+    while [ $elapsed -lt $timeout ]; do
+        PHASE=$(kubectl get clusters.apps.kubeblocks.io mongodb-$MONGODB_ORG -n $MONGODB_NS -o jsonpath='{{.status.phase}}' 2>/dev/null || echo "")
+        if [ "$PHASE" = "Running" ]; then
+            echo "==> MongoDB Cluster is Running!"
+            break
+        fi
+        echo "==> MongoDB phase: $PHASE (waiting...)"
+        sleep 10
+        elapsed=$((elapsed + 10))
+    done
+    kubectl get pods -n $MONGODB_NS
+    echo "==> MongoDB setup complete!"
 fi
 
 # =============================================================================
@@ -873,7 +887,11 @@ echo "==> ESO installation complete!"
             f'CUSTOMER_ID="{self.customer_id}"',
             f'CUSTOM_MONGODB="{str(self.config.mongodb_config.custom_mongodb).lower() if self.config.mongodb_config else "true"}"',
             f'MONGODB_ORG="{self.config.mongodb_config.organization if self.config.mongodb_config else "cortexai"}"',
-            'ARGOCD_BRANCH="main"',
+            f'MONGODB_REPLICAS="{self.config.mongodb_config.replicas if self.config.mongodb_config else 1}"',
+            f'MONGODB_VERSION="{self.config.mongodb_config.version if self.config.mongodb_config else "7.0.28"}"',
+            f'MONGODB_CPU="{self.config.mongodb_config.cpu if self.config.mongodb_config else "500m"}"',
+            f'MONGODB_MEMORY="{self.config.mongodb_config.memory if self.config.mongodb_config else "1Gi"}"',
+            f'MONGODB_STORAGE_SIZE="{self.config.mongodb_config.storage_size if self.config.mongodb_config else "20Gi"}"',
             "",
             "# Configure kubectl",
             'echo "==> Configuring kubectl for $CLUSTER_NAME in $REGION..."',
