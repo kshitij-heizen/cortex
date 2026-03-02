@@ -398,34 +398,22 @@ if [ "$CUSTOM_MONGODB" = "false" ]; then
 
     if helm status mongodb-community-operator -n mongodb-operator &>/dev/null; then
         echo "==> MongoDB Community Operator already installed, upgrading..."
-        helm upgrade mongodb-community-operator mongodb/community-operator \\
-            --namespace mongodb-operator \\
-            --set operator.watchNamespace="*" \\
-            --wait --timeout 5m
+        helm upgrade mongodb-community-operator mongodb/community-operator --namespace mongodb-operator --set operator.watchNamespace="*" --wait --timeout 5m
     else
-        helm install mongodb-community-operator mongodb/community-operator \\
-            --namespace mongodb-operator --create-namespace \\
-            --set operator.watchNamespace="*" \\
-            --wait --timeout 5m
+        helm install mongodb-community-operator mongodb/community-operator --namespace mongodb-operator --create-namespace --set operator.watchNamespace="*" --wait --timeout 5m
     fi
 
-    kubectl wait --for=condition=available --timeout=120s \\
-        deployment/mongodb-community-operator -n mongodb-operator || true
+    kubectl wait --for=condition=available --timeout=120s deployment/mongodb-community-operator -n mongodb-operator || true
     echo "==> MongoDB Community Operator installed!"
 
     echo "==> Creating MongoDB namespace and shared secret..."
     MONGODB_NS="mongodb-$MONGODB_ORG"
     kubectl create namespace "$MONGODB_NS" --dry-run=client -o yaml | kubectl apply -f -
 
-    MONGODB_PASSWORD=$(aws secretsmanager get-secret-value \\
-        --secret-id /byoc/$CUSTOMER_ID/cortex-app \\
-        --region $REGION \\
-        --query 'SecretString' --output text | jq -r '.MONGODB_PASSWORD // empty')
+    MONGODB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /byoc/$CUSTOMER_ID/cortex-app --region $REGION --query 'SecretString' --output text | jq -r '.MONGODB_PASSWORD // empty')
 
     if [ -n "$MONGODB_PASSWORD" ]; then
-        kubectl create secret generic mongodb-shared-password -n "$MONGODB_NS" \\
-            --from-literal=password="$MONGODB_PASSWORD" \\
-            --dry-run=client -o yaml | kubectl apply -f -
+        kubectl create secret generic mongodb-shared-password -n "$MONGODB_NS" --from-literal=password="$MONGODB_PASSWORD" --dry-run=client -o yaml | kubectl apply -f -
         echo "==> MongoDB shared secret created!"
     else
         echo "==> WARNING: MONGODB_PASSWORD not found in Secrets Manager, skipping shared secret"
