@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: "Databases"
+data:
+  mongodb.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}] } } },
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "id": 1,
+          "title": "Uptime (days)",
+          "type": "stat",
+          "targets": [{ "expr": "mongodb_ss_uptime{namespace=~\"$namespace\"} / 86400", "legendFormat": "{{pod}}" }]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}] } } },
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+          "id": 2,
+          "title": "Current Connections",
+          "type": "stat",
+          "targets": [{ "expr": "mongodb_ss_connections{conn_type=\"current\", namespace=~\"$namespace\"}", "legendFormat": "{{pod}}" }]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "unit": "ops", "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}] } } },
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+          "id": 3,
+          "title": "Operations/sec",
+          "type": "stat",
+          "targets": [{ "expr": "sum(rate(mongodb_ss_opcounters[5m]))", "legendFormat": "" }]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "unit": "bytes", "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}] } } },
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+          "id": 4,
+          "title": "Data Size",
+          "type": "stat",
+          "targets": [{ "expr": "mongodb_dbstats_dataSize{namespace=~\"$namespace\"}", "legendFormat": "{{database}}" }]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "id": 5,
+          "title": "Operations by Type",
+          "type": "timeseries",
+          "targets": [
+            { "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"insert\", namespace=~\"$namespace\"}[5m])", "legendFormat": "insert" },
+            { "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"query\", namespace=~\"$namespace\"}[5m])", "legendFormat": "query" },
+            { "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"update\", namespace=~\"$namespace\"}[5m])", "legendFormat": "update" },
+            { "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"delete\", namespace=~\"$namespace\"}[5m])", "legendFormat": "delete" }
+          ]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "unit": "bytes" } },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "id": 6,
+          "title": "Memory Usage",
+          "type": "timeseries",
+          "targets": [
+            { "expr": "mongodb_ss_mem_resident{namespace=~\"$namespace\"} * 1024 * 1024", "legendFormat": "resident" },
+            { "expr": "mongodb_ss_mem_virtual{namespace=~\"$namespace\"} * 1024 * 1024", "legendFormat": "virtual" }
+          ]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+          "id": 7,
+          "title": "Connections Over Time",
+          "type": "timeseries",
+          "targets": [
+            { "expr": "mongodb_ss_connections{conn_type=\"current\", namespace=~\"$namespace\"}", "legendFormat": "current" },
+            { "expr": "mongodb_ss_connections{conn_type=\"available\", namespace=~\"$namespace\"}", "legendFormat": "available" }
+          ]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+          "id": 8,
+          "title": "Document Operations/sec",
+          "type": "timeseries",
+          "targets": [
+            { "expr": "rate(mongodb_ss_metrics_document{doc_op_type=\"inserted\", namespace=~\"$namespace\"}[5m])", "legendFormat": "inserted" },
+            { "expr": "rate(mongodb_ss_metrics_document{doc_op_type=\"returned\", namespace=~\"$namespace\"}[5m])", "legendFormat": "returned" },
+            { "expr": "rate(mongodb_ss_metrics_document{doc_op_type=\"updated\", namespace=~\"$namespace\"}[5m])", "legendFormat": "updated" },
+            { "expr": "rate(mongodb_ss_metrics_document{doc_op_type=\"deleted\", namespace=~\"$namespace\"}[5m])", "legendFormat": "deleted" }
+          ]
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["mongodb", "database"],
+      "templating": {
+        "list": [
+          { "current": {}, "hide": 0, "includeAll": true, "label": "Namespace", "multi": true, "name": "namespace", "options": [], "query": "label_values(mongodb_ss_uptime, namespace)", "refresh": 2, "regex": "mongodb-.*", "type": "query" },
+          { "current": {}, "hide": 0, "includeAll": false, "label": "Datasource", "name": "datasource", "options": [], "query": "prometheus", "type": "datasource" }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "MongoDB",
+      "uid": "mongodb",
+      "version": 1
+    }

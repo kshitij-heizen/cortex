@@ -17,7 +17,7 @@ prometheus:
           resources:
             requests:
               storage: 20Gi
-    
+
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     serviceMonitorNamespaceSelector: {}
@@ -26,16 +26,16 @@ prometheus:
 grafana:
   enabled: true
   adminPassword: "Prod_Grafana_Pass123!"
-  
+
   persistence:
     enabled: true
     storageClassName: gp2
     size: 2Gi
-  
+
   service:
     type: ClusterIP
     port: 80
-  
+
   resources:
     requests:
       cpu: 100m
@@ -46,9 +46,14 @@ grafana:
 
   sidecar:
     dashboards:
-      enabled: false
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      folderAnnotation: grafana_folder
+      searchNamespace: monitoring
     datasources:
-      enabled: false
+      enabled: true
+      searchNamespace: monitoring
 
 alertmanager:
   enabled: false
@@ -59,7 +64,7 @@ nodeExporter:
     requests:
       cpu: 50m
       memory: 50Mi
-  
+
   tolerations:
     - key: "workload"
       operator: "Equal"
