@@ -5,8 +5,9 @@ metadata:
   namespace: argocd
 data:
   policy.csv: |
-    p, role:api-read-only, applications, get, */*, allow
-    g, api_user, role:api-read-only
+    p, role:api-manager, applications, *, */*, allow
+    p, role:api-manager, repositories, *, *, allow
+    g, api_user, role:api-manager
   policy.default: ""
   policy.matchMode: glob
-  scopes: '[groups]'
+  scopes: "[groups]"

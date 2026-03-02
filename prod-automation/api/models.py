@@ -544,6 +544,7 @@ class ArgoCDAddonInput(BaseModel):
     server_replicas: int = Field(default=2, ge=1, le=10)
     repo_server_replicas: int = Field(default=2, ge=1, le=10)
     ha_enabled: bool = Field(default=False, description="Enable HA mode")
+    hostname: str = Field(default="", description="ArgoCD ingress hostname (e.g. argocd.example.com)")
     repository: Optional[ArgoCDRepoConfig] = None
     root_app_path: str = Field(default="gitops/apps/", description="Path to root app manifests")
     chart_version: str = Field(default="7.7.11", description="ArgoCD Helm chart version")
@@ -556,6 +557,7 @@ class ArgoCDAddonResolved(BaseModel):
     server_replicas: int
     repo_server_replicas: int
     ha_enabled: bool
+    hostname: str
     repository: Optional[ArgoCDRepoConfig] = None
     root_app_path: str
     chart_version: str = Field(default="7.7.11")
@@ -702,6 +704,7 @@ class EsoSecretsInput(BaseModel):
     mongodb_password: str = Field(default="", description="MongoDB root password (in-cluster mode)")
     google_api_key: str = Field(default="", description="Google API key")
     gemini_api_key: str = Field(default="", description="Gemini API key")
+    github_argocd_cd_token: str = Field(default="", description="GitHub PAT for ArgoCD repo access")
 
 
 class CustomerConfigInput(BaseModel):

@@ -72,6 +72,8 @@ config:
   MEMORY_SERVICE_URL: "http://cortex-ingestion.cortex-ingestion.svc.cluster.local"
   VECTOR_PUSH_URL: "https://vector.usecortex.opengig.work/"
 
+  ARGOCD_SERVER_URL: "https://argocd-server.argocd.svc.cluster.local"
+
 ingress:
   enabled: true
   className: nginx-inc
@@ -107,4 +109,5 @@ externalSecrets:
   enabled: true
   storeName: aws-secrets-manager
   secretKey: /byoc/heizen/cortex-app
+  argocdTokenSecretKey: /byoc/heizen/argocd-generated-tokens
   refreshInterval: 1h

@@ -501,6 +501,7 @@ cortex_app_secret = aws.secretsmanager.Secret(
 
 _eso_google_key = pulumi_config.get("esoGoogleApiKey") or ""
 _eso_gemini_key = pulumi_config.get("esoGeminiApiKey") or ""
+_eso_github_argocd_cd_token = pulumi_config.get("esoGithubArgocdCdToken") or ""
 
 
 def _build_cortex_app_secrets(args: list) -> str:
@@ -510,6 +511,7 @@ def _build_cortex_app_secrets(args: list) -> str:
         "MILVUS_TOKEN": args[1],
         "GOOGLE_API_KEY": _eso_google_key,
         "GEMINI_API_KEY": _eso_gemini_key,
+        "GITHUB_ARGOCD_CD_TOKEN": _eso_github_argocd_cd_token,
         "MINIO_BUCKET": args[2],
         "CORTEX_LOCAL_SOURCES_BUCKET_NAME": args[3],
         "NEXTAUTH_TABLE_NAME": args[4],
@@ -588,6 +590,24 @@ aws.secretsmanager.SecretVersion(
     secret_id=cortex_app_secret.id,
     secret_string=pulumi.Output.all(*_app_secret_args).apply(_build_cortex_app_secrets),
     opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+# Secrets Manager - ArgoCD generated tokens (written by addon installer, not Pulumi)
+argocd_tokens_secret = aws.secretsmanager.Secret(
+    f"{config.customer_id}-argocd-generated-tokens",
+    name=f"/byoc/{config.customer_id}/argocd-generated-tokens",
+    recovery_window_in_days=0,
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+aws.secretsmanager.SecretVersion(
+    f"{config.customer_id}-argocd-generated-tokens-version",
+    secret_id=argocd_tokens_secret.id,
+    secret_string=json.dumps({"CORTEX_ARGOCD": ""}),
+    opts=pulumi.ResourceOptions(
+        provider=aws_provider,
+        ignore_changes=["secret_string"],
+    ),
 )
 
 cortex_ingestion_secret = aws.secretsmanager.Secret(
@@ -767,6 +787,7 @@ pulumi.export("tenant_mapping_table_name", tenant_mapping_table.name)
 pulumi.export("token_bucket_table_name", token_bucket_table.name)
 pulumi.export("cortex_app_role_arn", cortex_app_role.arn)
 pulumi.export("cortex_app_role_name", cortex_app_role.name)
+pulumi.export("argocd_tokens_secret_name", argocd_tokens_secret.name)
 
 if kafka_cluster:
     pulumi.export("msk_cluster_arn", kafka_cluster.cluster_arn)
