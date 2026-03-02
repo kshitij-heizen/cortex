@@ -550,7 +550,7 @@ def _build_cortex_app_secrets(args: list) -> str:
                 mongo_pw_idx += 1
             mongo_pw = args[mongo_pw_idx] if len(args) > mongo_pw_idx else ""
             mongo_host = (
-                f"mongodb-{mongo.organization}-mongodb"
+                f"mongodb-{mongo.organization}-svc"
                 f".mongodb-{mongo.organization}.svc.cluster.local"
             )
             secrets["MONGODB_CLUSTER_CONNECTION_URI"] = (
@@ -638,7 +638,7 @@ def _build_cortex_ingestion_secrets(args: list) -> str:
                 mongo_pw_idx += 1
             mongo_pw = args[mongo_pw_idx] if len(args) > mongo_pw_idx else ""
             mongo_host = (
-                f"mongodb-{mongo.organization}-mongodb"
+                f"mongodb-{mongo.organization}-svc"
                 f".mongodb-{mongo.organization}.svc.cluster.local"
             )
             secrets["MONGODB_CLUSTER_CONNECTION_URI"] = (

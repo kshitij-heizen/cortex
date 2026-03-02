@@ -389,44 +389,42 @@ unset FALKORDB_PASSWORD
 echo "==> FalkorDB shared secret created!"
 
 # =============================================================================
-# MONGODB ADDON (only when deploying in-cluster)
+# MONGODB (only when deploying in-cluster)
 # =============================================================================
 if [ "$CUSTOM_MONGODB" = "false" ]; then
-    echo "==> Installing MongoDB KubeBlocks addon..."
-    if helm status kb-addon-mongodb -n kubeblocks &>/dev/null; then
-        echo "==> MongoDB addon already installed, upgrading..."
-        helm upgrade kb-addon-mongodb kubeblocks/mongodb -n kubeblocks
+    echo "==> Installing MongoDB Community Operator..."
+    helm repo add mongodb https://mongodb.github.io/helm-charts
+    helm repo update mongodb
+
+    if helm status mongodb-community-operator -n mongodb-operator &>/dev/null; then
+        echo "==> MongoDB Community Operator already installed, upgrading..."
+        helm upgrade mongodb-community-operator mongodb/community-operator \\
+            --namespace mongodb-operator \\
+            --set operator.watchNamespace="*" \\
+            --wait --timeout 5m
     else
-        helm install kb-addon-mongodb kubeblocks/mongodb -n kubeblocks
+        helm install mongodb-community-operator mongodb/community-operator \\
+            --namespace mongodb-operator --create-namespace \\
+            --set operator.watchNamespace="*" \\
+            --wait --timeout 5m
     fi
 
-    echo "==> Waiting for MongoDB ClusterDefinition..."
-    timeout=120
-    elapsed=0
-    while [ $elapsed -lt $timeout ]; do
-        if kubectl get clusterdefinitions.apps.kubeblocks.io mongodb &>/dev/null; then
-            echo "==> MongoDB ClusterDefinition is ready!"
-            break
-        fi
-        sleep 5
-        elapsed=$((elapsed + 5))
-    done
-    kubectl get clusterdefinitions.apps.kubeblocks.io | grep mongodb
-    echo "==> MongoDB addon installation complete!"
+    kubectl wait --for=condition=available --timeout=120s \\
+        deployment/mongodb-community-operator -n mongodb-operator || true
+    echo "==> MongoDB Community Operator installed!"
 
     echo "==> Creating MongoDB namespace and shared secret..."
     MONGODB_NS="mongodb-$MONGODB_ORG"
     kubectl create namespace "$MONGODB_NS" --dry-run=client -o yaml | kubectl apply -f -
 
-    MONGODB_PASSWORD=$(aws secretsmanager get-secret-value \
-        --secret-id /byoc/$CUSTOMER_ID/cortex-app \
-        --region $REGION \
+    MONGODB_PASSWORD=$(aws secretsmanager get-secret-value \\
+        --secret-id /byoc/$CUSTOMER_ID/cortex-app \\
+        --region $REGION \\
         --query 'SecretString' --output text | jq -r '.MONGODB_PASSWORD // empty')
 
     if [ -n "$MONGODB_PASSWORD" ]; then
-        kubectl create secret generic mongodb-shared-password -n "$MONGODB_NS" \
-            --from-literal=username=root \
-            --from-literal=password="$MONGODB_PASSWORD" \
+        kubectl create secret generic mongodb-shared-password -n "$MONGODB_NS" \\
+            --from-literal=password="$MONGODB_PASSWORD" \\
             --dry-run=client -o yaml | kubectl apply -f -
         echo "==> MongoDB shared secret created!"
     else
@@ -434,56 +432,71 @@ if [ "$CUSTOM_MONGODB" = "false" ]; then
     fi
     unset MONGODB_PASSWORD
 
-    echo "==> Creating MongoDB KubeBlocks Cluster..."
-    cat <<MONGO_CLUSTER_EOF | kubectl apply -f -
-apiVersion: apps.kubeblocks.io/v1
-kind: Cluster
+    echo "==> Creating MongoDBCommunity resource..."
+    cat <<MONGO_CR_EOF | kubectl apply -f -
+apiVersion: mongodbcommunity.mongodb.com/v1
+kind: MongoDBCommunity
 metadata:
   name: mongodb-$MONGODB_ORG
   namespace: $MONGODB_NS
 spec:
-  terminationPolicy: Delete
-  clusterDef: mongodb
-  topology: replicaset
-  componentSpecs:
-    - name: mongodb
-      serviceVersion: "$MONGODB_VERSION"
-      replicas: $MONGODB_REPLICAS
-      systemAccounts:
+  members: $MONGODB_REPLICAS
+  type: ReplicaSet
+  version: "$MONGODB_VERSION"
+  security:
+    authentication:
+      modes: ["SCRAM"]
+  users:
+    - name: root
+      db: admin
+      passwordSecretRef:
+        name: mongodb-shared-password
+        key: password
+      scramCredentialsSecretName: mongodb-root-scram
+      roles:
         - name: root
-          secretRef:
-            name: mongodb-shared-password
-            namespace: $MONGODB_NS
-      disableExporter: false
-      resources:
-        requests:
-          cpu: "$MONGODB_CPU"
-          memory: "$MONGODB_MEMORY"
-        limits:
-          cpu: "$MONGODB_CPU"
-          memory: "$MONGODB_MEMORY"
+          db: admin
+  additionalMongodConfig:
+    storage.wiredTiger.engineConfig.journalCompressor: zlib
+    net.compression.compressors: snappy,zstd,zlib
+  statefulSet:
+    spec:
+      template:
+        spec:
+          nodeSelector:
+            role: general
+          containers:
+            - name: mongod
+              resources:
+                requests:
+                  cpu: "$MONGODB_CPU"
+                  memory: "$MONGODB_MEMORY"
+                limits:
+                  cpu: "$MONGODB_CPU"
+                  memory: "$MONGODB_MEMORY"
       volumeClaimTemplates:
-        - name: data
+        - metadata:
+            name: data-volume
           spec:
             storageClassName: gp3
             accessModes: ["ReadWriteOnce"]
             resources:
               requests:
                 storage: $MONGODB_STORAGE_SIZE
-MONGO_CLUSTER_EOF
+MONGO_CR_EOF
 
-    echo "==> Waiting for MongoDB Cluster to be Running..."
-    timeout=300
+    echo "==> Waiting for MongoDB to be Running..."
+    timeout=600
     elapsed=0
     while [ $elapsed -lt $timeout ]; do
-        PHASE=$(kubectl get clusters.apps.kubeblocks.io mongodb-$MONGODB_ORG -n $MONGODB_NS -o jsonpath='{{.status.phase}}' 2>/dev/null || echo "")
+        PHASE=$(kubectl get mongodbcommunity mongodb-$MONGODB_ORG -n $MONGODB_NS -o jsonpath='{{.status.phase}}' 2>/dev/null || echo "")
         if [ "$PHASE" = "Running" ]; then
-            echo "==> MongoDB Cluster is Running!"
+            echo "==> MongoDB Community ReplicaSet is Running!"
             break
         fi
         echo "==> MongoDB phase: $PHASE (waiting...)"
-        sleep 10
-        elapsed=$((elapsed + 10))
+        sleep 15
+        elapsed=$((elapsed + 15))
     done
     kubectl get pods -n $MONGODB_NS
     echo "==> MongoDB setup complete!"
