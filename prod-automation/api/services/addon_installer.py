@@ -1,4 +1,3 @@
-
 import asyncio
 import base64
 import json
@@ -396,19 +395,21 @@ if [ "$CUSTOM_MONGODB" = "false" ]; then
     helm repo add mongodb https://mongodb.github.io/helm-charts
     helm repo update mongodb
 
-    if helm status mongodb-community-operator -n mongodb-operator &>/dev/null; then
-        echo "==> MongoDB Community Operator already installed, upgrading..."
-        helm upgrade mongodb-community-operator mongodb/community-operator --namespace mongodb-operator --set operator.watchNamespace="*" --wait --timeout 5m
-    else
-        helm install mongodb-community-operator mongodb/community-operator --namespace mongodb-operator --create-namespace --set operator.watchNamespace="*" --wait --timeout 5m
-    fi
-
-    kubectl wait --for=condition=available --timeout=120s deployment/mongodb-community-operator -n mongodb-operator || true
-    echo "==> MongoDB Community Operator installed!"
-
-    echo "==> Creating MongoDB namespace and shared secret..."
+    echo "==> Creating MongoDB namespace and setting variables..."
     MONGODB_NS="mongodb-$MONGODB_ORG"
     kubectl create namespace "$MONGODB_NS" --dry-run=client -o yaml | kubectl apply -f -
+
+    if helm status mongodb-community-operator -n mongodb-operator &>/dev/null; then
+        echo "==> MongoDB Community Operator already installed, upgrading..."
+        helm upgrade mongodb-community-operator mongodb/community-operator --namespace mongodb-operator --set operator.watchNamespace="*" --set database.namespace=$MONGODB_NS --wait --timeout 5m
+    else
+        helm install mongodb-community-operator mongodb/community-operator --namespace mongodb-operator --create-namespace --set operator.watchNamespace="*" --set database.namespace=$MONGODB_NS --wait --timeout 5m
+    fi
+
+    kubectl wait --for=condition=available --timeout=120s deployment/mongodb-kubernetes-operator -n mongodb-operator || true
+    echo "==> MongoDB Community Operator installed!"
+
+    echo "==> Creating MongoDB shared secret..."
 
     MONGODB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /byoc/$CUSTOMER_ID/cortex-app --region $REGION --query 'SecretString' --output text | jq -r '.MONGODB_PASSWORD // empty')
 
@@ -471,6 +472,14 @@ spec:
             resources:
               requests:
                 storage: $MONGODB_STORAGE_SIZE
+        - metadata:
+            name: logs-volume
+          spec:
+            storageClassName: gp3
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 2Gi
 MONGO_CR_EOF
 
     echo "==> Waiting for MongoDB to be Running..."
@@ -823,8 +832,8 @@ echo "==> cert-manager installation complete!"
                 "    PF_PID=$!",
                 "    sleep 5",
                 """    ARGOCD_ADMIN_PASS=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d)""",
-                """    SESSION=$(curl -sk https://localhost:8443/api/v1/session -d "{\\"username\\":\\"admin\\",\\"password\\":\\"$ARGOCD_ADMIN_PASS\\"}" | jq -r '.token')""",
-                """    API_TOKEN=$(curl -sk https://localhost:8443/api/v1/account/api_user/token -H "Authorization: Bearer $SESSION" -d '{}' | jq -r '.token')""",
+                """    SESSION=$(curl -sk -H "Content-Type: application/json" https://localhost:8443/api/v1/session -d "{\\\"username\\\":\\\"admin\\\",\\\"password\\\":\\\"$ARGOCD_ADMIN_PASS\\\"}" | jq -r '.token')""",
+                """    API_TOKEN=$(curl -sk -H "Content-Type: application/json" https://localhost:8443/api/v1/account/api_user/token -H "Authorization: Bearer $SESSION" -d '{}' | jq -r '.token')""",
                 "    kill $PF_PID 2>/dev/null || true",
                 "    wait $PF_PID 2>/dev/null || true",
                 "    unset ARGOCD_ADMIN_PASS SESSION",

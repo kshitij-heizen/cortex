@@ -281,6 +281,11 @@ class PulumiDeploymentsClient:
             eso.mongodb_password if eso else "",
             secret=True,
         ))
+        commands.append(config_set(
+            "esoGithubArgocdCdToken",
+            eso.github_argocd_cd_token if eso else "",
+            secret=True,
+        ))
 
         return commands
 

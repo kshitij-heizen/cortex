@@ -83,8 +83,28 @@ class AccessNode(pulumi.ComponentResource):
                 "Version": "2012-10-17",
                 "Statement": [{
                     "Effect": "Allow",
-                    "Action": ["ssm:GetParameter"],
+                    "Action": [
+                        "ssm:GetParameter",
+                        "ssm:PutParameter",
+                    ],
                     "Resource": f"arn:aws:ssm:{region}:{caller.account_id}:parameter/byoc/*",
+                }],
+            }),
+            opts=child_opts,
+        )
+
+        aws.iam.RolePolicy(
+            f"{name}-access-node-secrets-manager-policy",
+            role=self.role.name,
+            policy=json.dumps({
+                "Version": "2012-10-17",
+                "Statement": [{
+                    "Effect": "Allow",
+                    "Action": [
+                        "secretsmanager:GetSecretValue",
+                        "secretsmanager:PutSecretValue",
+                    ],
+                    "Resource": f"arn:aws:secretsmanager:{region}:{caller.account_id}:secret:/byoc/*",
                 }],
             }),
             opts=child_opts,

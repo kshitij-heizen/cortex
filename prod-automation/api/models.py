@@ -557,7 +557,7 @@ class ArgoCDAddonResolved(BaseModel):
     server_replicas: int
     repo_server_replicas: int
     ha_enabled: bool
-    hostname: str
+    hostname: str = Field(default="")
     repository: Optional[ArgoCDRepoConfig] = None
     root_app_path: str
     chart_version: str = Field(default="7.7.11")
