@@ -42,8 +42,8 @@ config:
   VESPA_CONTAINER_URL: ""
 
   STORAGE_BACKEND: "s3"
-  MINIO_ENDPOINT: "localhost:9000"
-  MINIO_SECURE: "false"
+  MINIO_ENDPOINT: "s3.us-east-1.amazonaws.com"
+  MINIO_SECURE: "true"
   MINIO_BUCKET: "documents"
 
   KAFKA_BOOTSTRAP_SERVERS: ""
@@ -70,7 +70,7 @@ config:
   TOKEN_BUCKET_TABLE_NAME: "token_bucket_rate_limiter"
 
   MEMORY_SERVICE_URL: "http://cortex-ingestion.cortex-ingestion.svc.cluster.local"
-  VECTOR_PUSH_URL: "https://vector.usecortex.opengig.work/"
+  VECTOR_PUSH_URL: "https://vector.usecortex.opengig.work"
 
   ARGOCD_SERVER_URL: "https://argocd-server.argocd.svc.cluster.local"
 

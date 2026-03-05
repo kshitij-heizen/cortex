@@ -494,23 +494,58 @@ def validate_mongodb_config(
     if mongodb_config is None:
         return errors
 
-    if mongodb_config.custom_mongodb:
+    if mongodb_config.mode == "external":
         if not mongodb_config.connection_uri:
             errors.append(
                 ValidationErrorDetail(
                     field="mongodb_config.connection_uri",
-                    message="Connection URI is required when custom_mongodb is true",
+                    message="Connection URI is required when mode is 'external'",
                 )
             )
-    else:
-        if mongodb_config.connection_uri:
+    elif mongodb_config.mode in ("atlas", "atlas-peering"):
+        if not mongodb_config.atlas_public_key:
             errors.append(
                 ValidationErrorDetail(
-                    field="mongodb_config.connection_uri",
-                    message="Connection URI should not be set when custom_mongodb is false (built automatically)",
+                    field="mongodb_config.atlas_public_key",
+                    message="Atlas public key is required for atlas/atlas-peering mode",
                 )
             )
-
+        if not mongodb_config.atlas_private_key:
+            errors.append(
+                ValidationErrorDetail(
+                    field="mongodb_config.atlas_private_key",
+                    message="Atlas private key is required for atlas/atlas-peering mode",
+                )
+            )
+        if not mongodb_config.atlas_org_id:
+            errors.append(
+                ValidationErrorDetail(
+                    field="mongodb_config.atlas_org_id",
+                    message="Atlas org ID is required for atlas/atlas-peering mode",
+                )
+            )
+        if mongodb_config.mode == "atlas" and not mongodb_config.atlas_project_name:
+            errors.append(
+                ValidationErrorDetail(
+                    field="mongodb_config.atlas_project_name",
+                    message="Atlas project name is required when creating a new cluster",
+                )
+            )
+        if mongodb_config.mode == "atlas-peering":
+            if not mongodb_config.atlas_project_id:
+                errors.append(
+                    ValidationErrorDetail(
+                        field="mongodb_config.atlas_project_id",
+                        message="Atlas project ID is required for atlas-peering mode",
+                    )
+                )
+            if not mongodb_config.atlas_cluster_name:
+                errors.append(
+                    ValidationErrorDetail(
+                        field="mongodb_config.atlas_cluster_name",
+                        message="Atlas cluster name is required for atlas-peering mode",
+                    )
+                )
     return errors
 
 

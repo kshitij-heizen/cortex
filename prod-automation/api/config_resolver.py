@@ -498,14 +498,19 @@ def resolve_mongodb_config(
         return None
 
     return MongoDBConfigResolved(
-        custom_mongodb=input_config.custom_mongodb,
+        mode=input_config.mode,
+        atlas_public_key=input_config.atlas_public_key,
+        atlas_private_key=input_config.atlas_private_key,
+        atlas_org_id=input_config.atlas_org_id,
+        atlas_project_name=input_config.atlas_project_name,
+        atlas_project_id=input_config.atlas_project_id,
+        atlas_cluster_name=input_config.atlas_cluster_name,
+        cluster_tier=input_config.cluster_tier,
+        cluster_region=input_config.cluster_region,
+        db_username=input_config.db_username,
+        db_password=input_config.db_password,
+        disk_size_gb=input_config.disk_size_gb,
         connection_uri=input_config.connection_uri,
-        organization=input_config.organization,
-        replicas=input_config.replicas,
-        storage_size=input_config.storage_size,
-        cpu=input_config.cpu,
-        memory=input_config.memory,
-        version=input_config.version,
     )
 
 

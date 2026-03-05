@@ -659,41 +659,47 @@ class KafkaConfigResolved(BaseModel):
 class MongoDBConfigInput(BaseModel):
     """MongoDB configuration input."""
 
-    custom_mongodb: bool = Field(
-        default=True,
-        description="True = customer provides Atlas URI, False = deploy in-cluster via KubeBlocks",
+    mode: str = Field(
+        default="atlas",
+        description="'atlas' = provision Atlas cluster + VPC peering, 'atlas-peering' = VPC peer to existing Atlas cluster, 'external' = just use connection URI",
     )
-    connection_uri: Optional[str] = Field(
-        default=None,
-        description="MongoDB connection URI (required if custom_mongodb=true)",
-    )
-    organization: str = Field(
-        default="cortexai",
-        description="Organization name, used for namespace mongodb-{org}",
-    )
-    replicas: int = Field(
-        default=1,
-        ge=1,
-        le=7,
-        description="Number of MongoDB replicas (1=standalone, 3+=replicaset)",
-    )
-    storage_size: str = Field(default="20Gi", description="Storage size per replica")
-    cpu: str = Field(default="500m", description="CPU request per replica")
-    memory: str = Field(default="1Gi", description="Memory request per replica")
-    version: str = Field(default="7.0.28", description="MongoDB version")
+    # Always required for atlas/atlas-peering modes
+    atlas_public_key: Optional[str] = Field(default=None, description="Atlas API public key")
+    atlas_private_key: Optional[str] = Field(default=None, description="Atlas API private key (secret)")
+    atlas_org_id: Optional[str] = Field(default=None, description="Atlas Organization ID")
+
+    # Required for 'atlas' mode (create new cluster)
+    atlas_project_name: Optional[str] = Field(default=None, description="Atlas project name to create")
+    cluster_tier: str = Field(default="M10", description="Atlas cluster tier (M10, M30, M50, etc.)")
+    cluster_region: str = Field(default="US_EAST_1", description="Atlas region (e.g., US_EAST_1)")
+    db_username: str = Field(default="cortex", description="Database username")
+    db_password: Optional[str] = Field(default=None, description="Database password (secret)")
+    disk_size_gb: int = Field(default=10, description="Disk size in GB")
+
+    # Required for 'atlas-peering' mode (existing cluster)
+    atlas_project_id: Optional[str] = Field(default=None, description="Existing Atlas Project ID")
+    atlas_cluster_name: Optional[str] = Field(default=None, description="Existing Atlas cluster name")
+
+    # Required for 'external' mode
+    connection_uri: Optional[str] = Field(default=None, description="MongoDB connection URI")
 
 
 class MongoDBConfigResolved(BaseModel):
     """Fully resolved MongoDB configuration."""
 
-    custom_mongodb: bool
+    mode: str
+    atlas_public_key: Optional[str] = None
+    atlas_private_key: Optional[str] = None
+    atlas_org_id: Optional[str] = None
+    atlas_project_name: Optional[str] = None
+    atlas_project_id: Optional[str] = None
+    atlas_cluster_name: Optional[str] = None
+    cluster_tier: str = "M10"
+    cluster_region: str = "US_EAST_1"
+    db_username: str = "cortex"
+    db_password: Optional[str] = None
+    disk_size_gb: int = 10
     connection_uri: Optional[str] = None
-    organization: str
-    replicas: int
-    storage_size: str
-    cpu: str
-    memory: str
-    version: str
 
 
 class EsoSecretsInput(BaseModel):
@@ -701,7 +707,7 @@ class EsoSecretsInput(BaseModel):
 
     falkordb_password: str = Field(default="", description="FalkorDB password")
     milvus_token: str = Field(default="", description="Milvus auth token")
-    mongodb_password: str = Field(default="", description="MongoDB root password (in-cluster mode)")
+    mongodb_password: str = Field(default="", description="MongoDB Atlas database password")
     google_api_key: str = Field(default="", description="Google API key")
     gemini_api_key: str = Field(default="", description="Gemini API key")
     github_argocd_cd_token: str = Field(default="", description="GitHub PAT for ArgoCD repo access")

@@ -250,13 +250,25 @@ class PulumiDeploymentsClient:
         if config.mongodb_config:
             mongo = config.mongodb_config
             commands.append(config_set("mongodbEnabled", "true"))
-            commands.append(config_set("customMongodb", str(mongo.custom_mongodb).lower()))
-            commands.append(config_set("mongodbOrganization", mongo.organization))
-            commands.append(config_set("mongodbReplicas", str(mongo.replicas)))
-            commands.append(config_set("mongodbStorageSize", mongo.storage_size))
-            commands.append(config_set("mongodbCpu", mongo.cpu))
-            commands.append(config_set("mongodbMemory", mongo.memory))
-            commands.append(config_set("mongodbVersion", mongo.version))
+            commands.append(config_set("mongodbMode", mongo.mode))
+            if mongo.atlas_public_key:
+                commands.append(config_set("mongodbAtlasPublicKey", mongo.atlas_public_key))
+            if mongo.atlas_private_key:
+                commands.append(config_set("mongodbAtlasPrivateKey", mongo.atlas_private_key, secret=True))
+            if mongo.atlas_org_id:
+                commands.append(config_set("mongodbAtlasOrgId", mongo.atlas_org_id))
+            if mongo.atlas_project_name:
+                commands.append(config_set("mongodbAtlasProjectName", mongo.atlas_project_name))
+            if mongo.atlas_project_id:
+                commands.append(config_set("mongodbAtlasProjectId", mongo.atlas_project_id))
+            if mongo.atlas_cluster_name:
+                commands.append(config_set("mongodbAtlasClusterName", mongo.atlas_cluster_name))
+            commands.append(config_set("mongodbClusterTier", mongo.cluster_tier))
+            commands.append(config_set("mongodbClusterRegion", mongo.cluster_region))
+            commands.append(config_set("mongodbDbUsername", mongo.db_username))
+            if mongo.db_password:
+                commands.append(config_set("mongodbDbPassword", mongo.db_password, secret=True))
+            commands.append(config_set("mongodbDiskSizeGb", str(mongo.disk_size_gb)))
             if mongo.connection_uri:
                 commands.append(config_set("mongodbConnectionUri", mongo.connection_uri, secret=True))
 

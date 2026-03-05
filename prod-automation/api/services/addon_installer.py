@@ -388,118 +388,6 @@ unset FALKORDB_PASSWORD
 echo "==> FalkorDB shared secret created!"
 
 # =============================================================================
-# MONGODB (only when deploying in-cluster)
-# =============================================================================
-if [ "$CUSTOM_MONGODB" = "false" ]; then
-    echo "==> Installing MongoDB Community Operator..."
-    helm repo add mongodb https://mongodb.github.io/helm-charts
-    helm repo update mongodb
-
-    echo "==> Creating MongoDB namespace and setting variables..."
-    MONGODB_NS="mongodb-$MONGODB_ORG"
-    kubectl create namespace "$MONGODB_NS" --dry-run=client -o yaml | kubectl apply -f -
-
-    if helm status mongodb-community-operator -n mongodb-operator &>/dev/null; then
-        echo "==> MongoDB Community Operator already installed, upgrading..."
-        helm upgrade mongodb-community-operator mongodb/community-operator --namespace mongodb-operator --set operator.watchNamespace="*" --set database.namespace=$MONGODB_NS --wait --timeout 5m
-    else
-        helm install mongodb-community-operator mongodb/community-operator --namespace mongodb-operator --create-namespace --set operator.watchNamespace="*" --set database.namespace=$MONGODB_NS --wait --timeout 5m
-    fi
-
-    kubectl wait --for=condition=available --timeout=120s deployment/mongodb-kubernetes-operator -n mongodb-operator || true
-    echo "==> MongoDB Community Operator installed!"
-
-    echo "==> Creating MongoDB shared secret..."
-
-    MONGODB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /byoc/$CUSTOMER_ID/cortex-app --region $REGION --query 'SecretString' --output text | jq -r '.MONGODB_PASSWORD // empty')
-
-    if [ -n "$MONGODB_PASSWORD" ]; then
-        kubectl create secret generic mongodb-shared-password -n "$MONGODB_NS" --from-literal=password="$MONGODB_PASSWORD" --dry-run=client -o yaml | kubectl apply -f -
-        echo "==> MongoDB shared secret created!"
-    else
-        echo "==> WARNING: MONGODB_PASSWORD not found in Secrets Manager, skipping shared secret"
-    fi
-    unset MONGODB_PASSWORD
-
-    echo "==> Creating MongoDBCommunity resource..."
-    cat <<MONGO_CR_EOF | kubectl apply -f -
-apiVersion: mongodbcommunity.mongodb.com/v1
-kind: MongoDBCommunity
-metadata:
-  name: mongodb-$MONGODB_ORG
-  namespace: $MONGODB_NS
-spec:
-  members: $MONGODB_REPLICAS
-  type: ReplicaSet
-  version: "$MONGODB_VERSION"
-  security:
-    authentication:
-      modes: ["SCRAM"]
-  users:
-    - name: root
-      db: admin
-      passwordSecretRef:
-        name: mongodb-shared-password
-        key: password
-      scramCredentialsSecretName: mongodb-root-scram
-      roles:
-        - name: root
-          db: admin
-  additionalMongodConfig:
-    storage.wiredTiger.engineConfig.journalCompressor: zlib
-    net.compression.compressors: snappy,zstd,zlib
-  statefulSet:
-    spec:
-      template:
-        spec:
-          nodeSelector:
-            role: general
-          containers:
-            - name: mongod
-              resources:
-                requests:
-                  cpu: "$MONGODB_CPU"
-                  memory: "$MONGODB_MEMORY"
-                limits:
-                  cpu: "$MONGODB_CPU"
-                  memory: "$MONGODB_MEMORY"
-      volumeClaimTemplates:
-        - metadata:
-            name: data-volume
-          spec:
-            storageClassName: gp3
-            accessModes: ["ReadWriteOnce"]
-            resources:
-              requests:
-                storage: $MONGODB_STORAGE_SIZE
-        - metadata:
-            name: logs-volume
-          spec:
-            storageClassName: gp3
-            accessModes: ["ReadWriteOnce"]
-            resources:
-              requests:
-                storage: 2Gi
-MONGO_CR_EOF
-
-    echo "==> Waiting for MongoDB to be Running..."
-    timeout=600
-    elapsed=0
-    while [ $elapsed -lt $timeout ]; do
-        PHASE=$(kubectl get mongodbcommunity mongodb-$MONGODB_ORG -n $MONGODB_NS -o jsonpath='{{.status.phase}}' 2>/dev/null || echo "")
-        if [ "$PHASE" = "Running" ]; then
-            echo "==> MongoDB Community ReplicaSet is Running!"
-            break
-        fi
-        echo "==> MongoDB phase: $PHASE (waiting...)"
-        sleep 15
-        elapsed=$((elapsed + 15))
-    done
-    kubectl get pods -n $MONGODB_NS
-    echo "==> MongoDB setup complete!"
-fi
-
-# =============================================================================
 # MILVUS OPERATOR
 # =============================================================================
 echo "==> Installing Milvus Operator..."
@@ -717,7 +605,7 @@ echo "==> cert-manager installation complete!"
             "",
             "# Install / upgrade ArgoCD",
             f"helm upgrade --install argocd argo/argo-cd --namespace argocd --create-namespace --version {argocd_config.chart_version} --set server.replicas={argocd_config.server_replicas} --set repoServer.replicas={argocd_config.repo_server_replicas} --set 'redis-ha.enabled={'true' if argocd_config.ha_enabled else 'false'}' --set controller.replicas={controller_replicas} --set configs.params.server\\.insecure=true"
-            + (f" --set server.ingress.enabled=true --set server.ingress.ingressClassName=nginx-inc --set 'server.ingress.hostname={argocd_config.hostname}' --set server.ingress.tls=true --set 'server.ingress.annotations.cert-manager\\.io/cluster-issuer=letsencrypt-prod'" if argocd_config.hostname else "")
+            + (f" --set server.ingress.enabled=true --set server.ingress.ingressClassName=nginx-inc --set 'server.ingress.hostname={argocd_config.hostname}' --set server.ingress.tls=true --set 'server.ingress.annotations.cert-manager\\.io/cluster-issuer=letsencrypt-prod' --set 'server.ingress.annotations.acme\\.cert-manager\\.io/http01-edit-in-place=true' --set 'server.ingress.annotations.nginx\\.org/redirect-to-https=false'" if argocd_config.hostname else "")
             + " --wait --timeout 5m",
         ]
 
@@ -930,13 +818,6 @@ echo "==> ESO installation complete!"
             f'CLUSTER_NAME="{cluster_name}"',
             f'REGION="{region}"',
             f'CUSTOMER_ID="{self.customer_id}"',
-            f'CUSTOM_MONGODB="{str(self.config.mongodb_config.custom_mongodb).lower() if self.config.mongodb_config else "true"}"',
-            f'MONGODB_ORG="{self.config.mongodb_config.organization if self.config.mongodb_config else "cortexai"}"',
-            f'MONGODB_REPLICAS="{self.config.mongodb_config.replicas if self.config.mongodb_config else 1}"',
-            f'MONGODB_VERSION="{self.config.mongodb_config.version if self.config.mongodb_config else "7.0.28"}"',
-            f'MONGODB_CPU="{self.config.mongodb_config.cpu if self.config.mongodb_config else "500m"}"',
-            f'MONGODB_MEMORY="{self.config.mongodb_config.memory if self.config.mongodb_config else "1Gi"}"',
-            f'MONGODB_STORAGE_SIZE="{self.config.mongodb_config.storage_size if self.config.mongodb_config else "20Gi"}"',
             f'ARGOCD_HOSTNAME="{argocd_config.hostname if argocd_config else ""}"',
             "",
             "# Configure kubectl",

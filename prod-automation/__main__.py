@@ -362,6 +362,26 @@ if config.kafka_config and not config.kafka_config.custom_kafka:
         ).bootstrap_brokers_sasl_iam
     )
 
+# MongoDB Atlas (conditional)
+mongo_atlas_result = None
+
+if config.mongodb_config and config.mongodb_config.mode in ("atlas", "atlas-peering"):
+    from infra.components.mongodb_atlas import provision_atlas_cluster
+
+    caller = aws.get_caller_identity(opts=pulumi.InvokeOptions(provider=aws_provider))
+
+    mongo_atlas_result = provision_atlas_cluster(
+        customer_id=config.customer_id,
+        mongo_config=config.mongodb_config,
+        vpc_id=networking.vpc_id,
+        vpc_cidr=config.vpc_config.cidr_block,
+        route_table_ids=[rt.id for rt in networking.private_route_tables],
+        node_security_group_id=eks.cluster_security_group_id,
+        aws_account_id=caller.account_id,
+        aws_region=config.aws_region,
+        aws_provider=aws_provider,
+    )
+
 # IAM - Cortex App Role (IRSA) with fixed name for predictable ARN
 def _build_cortex_app_policy(args: list) -> str:
     """Build the cortex-app IAM policy with conditional Kafka permissions."""
@@ -544,21 +564,15 @@ def _build_cortex_app_secrets(args: list) -> str:
 
     if config.mongodb_config:
         mongo = config.mongodb_config
-        if mongo.custom_mongodb:
+        if mongo.mode == "external":
             secrets["MONGODB_CLUSTER_CONNECTION_URI"] = mongo.connection_uri or ""
-        else:
-            mongo_pw_idx = 13
+        elif mongo.mode in ("atlas", "atlas-peering"):
+            # Connection URI is passed as the last arg when mongo_atlas_result exists
+            mongo_uri_idx = 13
             if config.kafka_config and not config.kafka_config.custom_kafka:
-                mongo_pw_idx += 1
-            mongo_pw = args[mongo_pw_idx] if len(args) > mongo_pw_idx else ""
-            mongo_host = (
-                f"mongodb-{mongo.organization}-svc"
-                f".mongodb-{mongo.organization}.svc.cluster.local"
-            )
-            secrets["MONGODB_CLUSTER_CONNECTION_URI"] = (
-                f"mongodb://root:{mongo_pw}@{mongo_host}:27017/admin?authSource=admin"
-            )
-            secrets["MONGODB_PASSWORD"] = mongo_pw
+                mongo_uri_idx += 1
+            if len(args) > mongo_uri_idx:
+                secrets["MONGODB_CLUSTER_CONNECTION_URI"] = args[mongo_uri_idx]
 
     return json.dumps(secrets)
 
@@ -582,8 +596,9 @@ _app_secret_args = [
 if kafka_bootstrap_output:
     _app_secret_args.append(kafka_bootstrap_output)
 
-if config.mongodb_config and not config.mongodb_config.custom_mongodb:
-    _app_secret_args.append(pulumi_config.require_secret("esoMongodbPassword"))
+# For Atlas modes, inject the connection URI from provision_atlas_cluster
+if mongo_atlas_result:
+    _app_secret_args.append(mongo_atlas_result.connection_string)
 
 aws.secretsmanager.SecretVersion(
     f"{config.customer_id}-cortex-app-secrets-version",
@@ -650,21 +665,15 @@ def _build_cortex_ingestion_secrets(args: list) -> str:
 
     if config.mongodb_config:
         mongo = config.mongodb_config
-        if mongo.custom_mongodb:
+        if mongo.mode == "external":
             secrets["MONGODB_CLUSTER_CONNECTION_URI"] = mongo.connection_uri or ""
-        else:
-            mongo_pw_idx = 7
+        elif mongo.mode in ("atlas", "atlas-peering"):
+            # Connection URI is passed as the last arg when mongo_atlas_result exists
+            mongo_uri_idx = 7
             if config.kafka_config and not config.kafka_config.custom_kafka:
-                mongo_pw_idx += 1
-            mongo_pw = args[mongo_pw_idx] if len(args) > mongo_pw_idx else ""
-            mongo_host = (
-                f"mongodb-{mongo.organization}-svc"
-                f".mongodb-{mongo.organization}.svc.cluster.local"
-            )
-            secrets["MONGODB_CLUSTER_CONNECTION_URI"] = (
-                f"mongodb://root:{mongo_pw}@{mongo_host}:27017/admin?authSource=admin"
-            )
-            secrets["MONGODB_PASSWORD"] = mongo_pw
+                mongo_uri_idx += 1
+            if len(args) > mongo_uri_idx:
+                secrets["MONGODB_CLUSTER_CONNECTION_URI"] = args[mongo_uri_idx]
 
     return json.dumps(secrets)
 
@@ -682,8 +691,9 @@ _ingestion_secret_args = [
 if kafka_bootstrap_output:
     _ingestion_secret_args.append(kafka_bootstrap_output)
 
-if config.mongodb_config and not config.mongodb_config.custom_mongodb:
-    _ingestion_secret_args.append(pulumi_config.require_secret("esoMongodbPassword"))
+# For Atlas modes, inject the connection URI from provision_atlas_cluster
+if mongo_atlas_result:
+    _ingestion_secret_args.append(mongo_atlas_result.connection_string)
 
 aws.secretsmanager.SecretVersion(
     f"{config.customer_id}-cortex-ingestion-secrets-version",

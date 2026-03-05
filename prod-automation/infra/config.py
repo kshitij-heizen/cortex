@@ -338,16 +338,20 @@ def _load_mongodb_config(config: pulumi.Config) -> Optional[MongoDBConfigResolve
     """Load MongoDB configuration from Pulumi config."""
     if not _parse_bool(config.get("mongodbEnabled"), False):
         return None
-
     return MongoDBConfigResolved(
-        custom_mongodb=_parse_bool(config.get("customMongodb"), True),
+        mode=config.get("mongodbMode") or "atlas",
+        atlas_public_key=config.get("mongodbAtlasPublicKey"),
+        atlas_private_key=config.get("mongodbAtlasPrivateKey"),
+        atlas_org_id=config.get("mongodbAtlasOrgId"),
+        atlas_project_name=config.get("mongodbAtlasProjectName"),
+        atlas_project_id=config.get("mongodbAtlasProjectId"),
+        atlas_cluster_name=config.get("mongodbAtlasClusterName"),
+        cluster_tier=config.get("mongodbClusterTier") or "M10",
+        cluster_region=config.get("mongodbClusterRegion") or "US_EAST_1",
+        db_username=config.get("mongodbDbUsername") or "cortex",
+        db_password=config.get("mongodbDbPassword"),
+        disk_size_gb=_parse_int(config.get("mongodbDiskSizeGb"), 10),
         connection_uri=config.get("mongodbConnectionUri"),
-        organization=config.get("mongodbOrganization") or "cortexai",
-        replicas=_parse_int(config.get("mongodbReplicas"), 1),
-        storage_size=config.get("mongodbStorageSize") or "20Gi",
-        cpu=config.get("mongodbCpu") or "500m",
-        memory=config.get("mongodbMemory") or "1Gi",
-        version=config.get("mongodbVersion") or "7.0.28",
     )
 
 
