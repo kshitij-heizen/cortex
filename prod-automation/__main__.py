@@ -534,32 +534,32 @@ _eso_gemini_key = pulumi_config.get("esoGeminiApiKey") or ""
 _eso_github_argocd_cd_token = pulumi_config.get("esoGithubArgocdCdToken") or ""
 
 
-def _build_cortex_app_secrets(args: list) -> str:
+def _build_cortex_app_secrets(args: dict) -> str:
     """Build cortex-app secrets JSON with conditional Kafka fields."""
     secrets = {
-        "FALKORDB_PASSWORD": args[0],
-        "MILVUS_TOKEN": args[1],
+        "FALKORDB_PASSWORD": args["falkordb_password"],
+        "MILVUS_TOKEN": args["milvus_token"],
         "GOOGLE_API_KEY": _eso_google_key,
         "GEMINI_API_KEY": _eso_gemini_key,
         "GITHUB_ARGOCD_CD_TOKEN": _eso_github_argocd_cd_token,
-        "MINIO_BUCKET": args[2],
-        "CORTEX_LOCAL_SOURCES_BUCKET_NAME": args[3],
-        "NEXTAUTH_TABLE_NAME": args[4],
-        "CORTEX_API_KEYS_TABLE_NAME": args[5],
-        "TENANT_ID_MAPPING_TABLE_NAME": args[6],
-        "CORTEX_APP_ROLE_ARN": args[7],
-        "USER_METADATA_TABLE_NAME": args[8],
-        "USER_INDEXED_DATA_TABLE": args[9],
-        "USER_DETAILS_TABLE_NAME": args[10],
-        "USERS_TO_SIGN_UP_TABLE_NAME": args[11],
-        "TOKEN_BUCKET_TABLE_NAME": args[12],
+        "MINIO_BUCKET": args["documents_bucket"],
+        "CORTEX_LOCAL_SOURCES_BUCKET_NAME": args["local_sources_bucket"],
+        "NEXTAUTH_TABLE_NAME": args["cortex_users_table"],
+        "CORTEX_API_KEYS_TABLE_NAME": args["api_keys_table"],
+        "TENANT_ID_MAPPING_TABLE_NAME": args["tenant_mapping_table"],
+        "CORTEX_APP_ROLE_ARN": args["cortex_app_role_arn"],
+        "USER_METADATA_TABLE_NAME": args["user_metadata_table"],
+        "USER_INDEXED_DATA_TABLE": args["user_indexed_data_table"],
+        "USER_DETAILS_TABLE_NAME": args["user_details_table"],
+        "USERS_TO_SIGN_UP_TABLE_NAME": args["users_to_sign_up_table"],
+        "TOKEN_BUCKET_TABLE_NAME": args["token_bucket_table"],
     }
 
     if config.kafka_config:
         kafka_cfg = config.kafka_config
         kafka_bootstrap = kafka_cfg.bootstrap_servers or ""
-        if not kafka_cfg.custom_kafka and len(args) > 13 and args[13]:
-            kafka_bootstrap = args[13]
+        if not kafka_cfg.custom_kafka and args.get("kafka_bootstrap"):
+            kafka_bootstrap = args["kafka_bootstrap"]
 
         secrets["KAFKA_BOOTSTRAP_SERVERS"] = kafka_bootstrap
         secrets["KAFKA_TOPIC"] = kafka_cfg.topic
@@ -576,44 +576,40 @@ def _build_cortex_app_secrets(args: list) -> str:
         mongo = config.mongodb_config
         if mongo.mode == "external":
             secrets["MONGODB_CLUSTER_CONNECTION_URI"] = mongo.connection_uri or ""
-        elif mongo.mode in ("atlas", "atlas-peering"):
-            # Connection URI is passed as the last arg when mongo_atlas_result exists
-            mongo_uri_idx = 13
-            if config.kafka_config and not config.kafka_config.custom_kafka:
-                mongo_uri_idx += 1
-            if len(args) > mongo_uri_idx:
-                secrets["MONGODB_CLUSTER_CONNECTION_URI"] = args[mongo_uri_idx]
+        elif mongo.mode in ("atlas", "atlas-peering") and args.get("mongodb_uri"):
+            secrets["MONGODB_CLUSTER_CONNECTION_URI"] = args["mongodb_uri"]
 
     return json.dumps(secrets)
 
 
-_app_secret_args = [
-    pulumi_config.require_secret("esoFalkordbPassword"),
-    pulumi_config.require_secret("esoMilvusToken"),
-    documents_bucket.bucket,
-    local_sources_bucket.bucket,
-    cortex_users_table.name,
-    api_keys_table.name,
-    tenant_mapping_table.name,
-    cortex_app_role.arn,
-    user_metadata_table.name,
-    user_indexed_data_table.name,
-    user_details_table.name,
-    users_to_sign_up_table.name,
-    token_bucket_table.name,
-]
+_app_secret_map: dict[str, pulumi.Output] = {
+    "falkordb_password": pulumi_config.require_secret("esoFalkordbPassword"),
+    "milvus_token": pulumi_config.require_secret("esoMilvusToken"),
+    "documents_bucket": documents_bucket.bucket,
+    "local_sources_bucket": local_sources_bucket.bucket,
+    "cortex_users_table": cortex_users_table.name,
+    "api_keys_table": api_keys_table.name,
+    "tenant_mapping_table": tenant_mapping_table.name,
+    "cortex_app_role_arn": cortex_app_role.arn,
+    "user_metadata_table": user_metadata_table.name,
+    "user_indexed_data_table": user_indexed_data_table.name,
+    "user_details_table": user_details_table.name,
+    "users_to_sign_up_table": users_to_sign_up_table.name,
+    "token_bucket_table": token_bucket_table.name,
+}
 
 if kafka_bootstrap_output:
-    _app_secret_args.append(kafka_bootstrap_output)
+    _app_secret_map["kafka_bootstrap"] = kafka_bootstrap_output
 
-# For Atlas modes, inject the connection URI from provision_atlas_cluster
 if mongo_atlas_result:
-    _app_secret_args.append(mongo_atlas_result.connection_string)
+    _app_secret_map["mongodb_uri"] = mongo_atlas_result.connection_string
 
 aws.secretsmanager.SecretVersion(
     f"{config.customer_id}-cortex-app-secrets-version",
     secret_id=cortex_app_secret.id,
-    secret_string=pulumi.Output.all(*_app_secret_args).apply(_build_cortex_app_secrets),
+    secret_string=pulumi.Output.all(**_app_secret_map).apply(
+        lambda resolved: _build_cortex_app_secrets(resolved)
+    ),
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
@@ -642,25 +638,25 @@ cortex_ingestion_secret = aws.secretsmanager.Secret(
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
-def _build_cortex_ingestion_secrets(args: list) -> str:
+def _build_cortex_ingestion_secrets(args: dict) -> str:
     """Build cortex-ingestion secrets JSON with conditional Kafka fields."""
     secrets = {
-        "FALKORDB_PASSWORD": args[0],
-        "MILVUS_TOKEN": args[1],
+        "FALKORDB_PASSWORD": args["falkordb_password"],
+        "MILVUS_TOKEN": args["milvus_token"],
         "GOOGLE_API_KEY": _eso_google_key,
         "GEMINI_API_KEY": _eso_gemini_key,
-        "MINIO_BUCKET": args[2],
-        "CORTEX_API_KEYS_TABLE_NAME": args[3],
-        "CORTEX_APP_ROLE_ARN": args[4],
-        "USER_INDEXED_DATA_TABLE": args[5],
-        "TOKEN_BUCKET_TABLE_NAME": args[6],
+        "MINIO_BUCKET": args["documents_bucket"],
+        "CORTEX_API_KEYS_TABLE_NAME": args["api_keys_table"],
+        "CORTEX_APP_ROLE_ARN": args["cortex_app_role_arn"],
+        "USER_INDEXED_DATA_TABLE": args["user_indexed_data_table"],
+        "TOKEN_BUCKET_TABLE_NAME": args["token_bucket_table"],
     }
 
     if config.kafka_config:
         kafka_cfg = config.kafka_config
         kafka_bootstrap = kafka_cfg.bootstrap_servers or ""
-        if not kafka_cfg.custom_kafka and len(args) > 7 and args[7]:
-            kafka_bootstrap = args[7]
+        if not kafka_cfg.custom_kafka and args.get("kafka_bootstrap"):
+            kafka_bootstrap = args["kafka_bootstrap"]
 
         secrets["KAFKA_BOOTSTRAP_SERVERS"] = kafka_bootstrap
         secrets["KAFKA_TOPIC"] = kafka_cfg.topic
@@ -677,39 +673,33 @@ def _build_cortex_ingestion_secrets(args: list) -> str:
         mongo = config.mongodb_config
         if mongo.mode == "external":
             secrets["MONGODB_CLUSTER_CONNECTION_URI"] = mongo.connection_uri or ""
-        elif mongo.mode in ("atlas", "atlas-peering"):
-            # Connection URI is passed as the last arg when mongo_atlas_result exists
-            mongo_uri_idx = 7
-            if config.kafka_config and not config.kafka_config.custom_kafka:
-                mongo_uri_idx += 1
-            if len(args) > mongo_uri_idx:
-                secrets["MONGODB_CLUSTER_CONNECTION_URI"] = args[mongo_uri_idx]
+        elif mongo.mode in ("atlas", "atlas-peering") and args.get("mongodb_uri"):
+            secrets["MONGODB_CLUSTER_CONNECTION_URI"] = args["mongodb_uri"]
 
     return json.dumps(secrets)
 
 
-_ingestion_secret_args = [
-    pulumi_config.require_secret("esoFalkordbPassword"),
-    pulumi_config.require_secret("esoMilvusToken"),
-    documents_bucket.bucket,
-    api_keys_table.name,
-    cortex_app_role.arn,
-    user_indexed_data_table.name,
-    token_bucket_table.name,
-]
+_ingestion_secret_map: dict[str, pulumi.Output] = {
+    "falkordb_password": pulumi_config.require_secret("esoFalkordbPassword"),
+    "milvus_token": pulumi_config.require_secret("esoMilvusToken"),
+    "documents_bucket": documents_bucket.bucket,
+    "api_keys_table": api_keys_table.name,
+    "cortex_app_role_arn": cortex_app_role.arn,
+    "user_indexed_data_table": user_indexed_data_table.name,
+    "token_bucket_table": token_bucket_table.name,
+}
 
 if kafka_bootstrap_output:
-    _ingestion_secret_args.append(kafka_bootstrap_output)
+    _ingestion_secret_map["kafka_bootstrap"] = kafka_bootstrap_output
 
-# For Atlas modes, inject the connection URI from provision_atlas_cluster
 if mongo_atlas_result:
-    _ingestion_secret_args.append(mongo_atlas_result.connection_string)
+    _ingestion_secret_map["mongodb_uri"] = mongo_atlas_result.connection_string
 
 aws.secretsmanager.SecretVersion(
     f"{config.customer_id}-cortex-ingestion-secrets-version",
     secret_id=cortex_ingestion_secret.id,
-    secret_string=pulumi.Output.all(*_ingestion_secret_args).apply(
-        _build_cortex_ingestion_secrets
+    secret_string=pulumi.Output.all(**_ingestion_secret_map).apply(
+        lambda resolved: _build_cortex_ingestion_secrets(resolved)
     ),
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
