@@ -397,12 +397,11 @@ def _build_cortex_app_policy(args: list) -> str:
                 "s3:PutObject",
                 "s3:DeleteObject",
                 "s3:ListBucket",
+                "s3:CreateBucket",
+                "s3:HeadBucket",
             ],
             "Resource": [
-                doc_bucket_arn,
-                f"{doc_bucket_arn}/*",
-                src_bucket_arn,
-                f"{src_bucket_arn}/*",
+                "arn:aws:s3:::*",
             ],
         },
         {
@@ -435,9 +434,20 @@ def _build_cortex_app_policy(args: list) -> str:
         elif len(args) > 10 and args[10]:
             kafka_resource = args[10]
 
-        kafka_resources = (
-            [kafka_resource, f"{kafka_resource}/*"] if kafka_resource != "*" else ["*"]
-        )
+        # MSK Serverless IAM auth requires separate resource ARNs for
+        # cluster connect, topic operations, and consumer group operations.
+        if kafka_resource != "*":
+            arn_parts = kafka_resource.split(":")
+            cluster_path = arn_parts[-1]  # cluster/NAME/ID
+            cluster_name_part = cluster_path.split("/")[1] if "/" in cluster_path else "*"
+            base_arn = ":".join(arn_parts[:-1])
+            kafka_resources = [
+                kafka_resource,
+                f"{base_arn}:topic/{cluster_name_part}/*",
+                f"{base_arn}:group/{cluster_name_part}/*",
+            ]
+        else:
+            kafka_resources = ["*"]
 
         statements.append(
             {
