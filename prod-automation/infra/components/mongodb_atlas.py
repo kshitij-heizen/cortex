@@ -81,7 +81,7 @@ def provision_atlas_cluster(
         )
 
         connection_string = cluster.connection_strings.apply(
-            lambda cs: cs[0].standard_srv if cs else ""
+            lambda cs: cs.standard_srv if cs else ""
         )
 
     else:
@@ -92,24 +92,49 @@ def provision_atlas_cluster(
         existing_cluster = atlas.get_cluster(
             project_id=mongo_config.atlas_project_id,
             name=mongo_config.atlas_cluster_name,
+            opts=pulumi.InvokeOptions(provider=atlas_provider),
         )
         connection_string = pulumi.Output.from_input(
-            existing_cluster.connection_strings[0].private_srv
-            or existing_cluster.connection_strings[0].standard_srv
+            existing_cluster.connection_strings.private_srv
+            or existing_cluster.connection_strings.standard_srv
+            or ""
         )
 
     # --- VPC Peering ---
+
+    # Atlas requires a network container for VPC peering.
+    # In 'atlas' mode we create one explicitly; in 'atlas-peering' mode
+    # the container already exists (created when the cluster was provisioned).
+    atlas_region = mongo_config.cluster_region.replace("-", "_").upper()
+
+    if mongo_config.mode == "atlas":
+        atlas_container = atlas.NetworkContainer(
+            f"{customer_id}-atlas-container",
+            project_id=project_id,
+            atlas_cidr_block="192.168.248.0/21",
+            provider_name="AWS",
+            region_name=atlas_region,
+            opts=opts,
+        )
+        container_id = atlas_container.id
+    else:
+        # Look up existing containers for the project
+        existing_containers = atlas.get_network_containers(
+            project_id=mongo_config.atlas_project_id,
+            provider_name="AWS",
+            opts=pulumi.InvokeOptions(provider=atlas_provider),
+        )
+        if not existing_containers.results:
+            raise ValueError("No Atlas network container found for this project. Ensure the Atlas cluster exists.")
+        container_id = existing_containers.results[0].id
 
     # Create peering from Atlas side
     peering = atlas.NetworkPeering(
         f"{customer_id}-atlas-vpc-peering",
         project_id=project_id,
-        container_id=atlas.get_network_container_output(
-            project_id=project_id,
-            container_id="",  # Will be auto-resolved
-        ).id if mongo_config.mode == "atlas" else "",
+        container_id=container_id,
         provider_name="AWS",
-        accepter_region_name=aws_region.replace("-", "_").upper(),
+        accepter_region_name=atlas_region,
         aws_account_id=aws_account_id,
         vpc_id=vpc_id,
         route_table_cidr_block=vpc_cidr,
@@ -167,10 +192,15 @@ def provision_atlas_cluster(
 
     # Build connection URI with credentials
     if mongo_config.mode == "atlas":
+        from urllib.parse import quote_plus
+
+        _encoded_user = quote_plus(mongo_config.db_username)
+        _encoded_pass = quote_plus(mongo_config.db_password or "")
+
         full_uri = connection_string.apply(
             lambda cs: cs.replace(
                 "mongodb+srv://",
-                f"mongodb+srv://{mongo_config.db_username}:{mongo_config.db_password}@",
+                f"mongodb+srv://{_encoded_user}:{_encoded_pass}@",
             ) + "/admin?retryWrites=true&w=majority"
             if cs else ""
         )

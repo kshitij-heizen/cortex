@@ -819,10 +819,9 @@ if config.mongodb_config:
     pulumi.export(
         "mongodb_config_summary",
         {
-            "custom_mongodb": config.mongodb_config.custom_mongodb,
-            "organization": config.mongodb_config.organization,
-            "replicas": config.mongodb_config.replicas,
-            "version": config.mongodb_config.version,
+            "mode": config.mongodb_config.mode,
+            "cluster_tier": config.mongodb_config.cluster_tier,
+            "cluster_region": config.mongodb_config.cluster_region,
         },
     )
 
