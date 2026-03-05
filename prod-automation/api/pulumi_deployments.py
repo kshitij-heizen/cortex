@@ -269,6 +269,7 @@ class PulumiDeploymentsClient:
             if mongo.db_password:
                 commands.append(config_set("mongodbDbPassword", mongo.db_password, secret=True))
             commands.append(config_set("mongodbDiskSizeGb", str(mongo.disk_size_gb)))
+            commands.append(config_set("mongodbAtlasCidrBlock", mongo.atlas_cidr_block))
             if mongo.connection_uri:
                 commands.append(config_set("mongodbConnectionUri", mongo.connection_uri, secret=True))
 

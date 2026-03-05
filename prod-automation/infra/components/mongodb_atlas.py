@@ -111,22 +111,26 @@ def provision_atlas_cluster(
         atlas_container = atlas.NetworkContainer(
             f"{customer_id}-atlas-container",
             project_id=project_id,
-            atlas_cidr_block="192.168.248.0/21",
+            atlas_cidr_block=mongo_config.atlas_cidr_block,
             provider_name="AWS",
             region_name=atlas_region,
             opts=opts,
         )
         container_id = atlas_container.id
     else:
-        # Look up existing containers for the project
+        # Look up existing containers for the project, filtered by region
         existing_containers = atlas.get_network_containers(
             project_id=mongo_config.atlas_project_id,
             provider_name="AWS",
             opts=pulumi.InvokeOptions(provider=atlas_provider),
         )
-        if not existing_containers.results:
-            raise ValueError("No Atlas network container found for this project. Ensure the Atlas cluster exists.")
-        container_id = existing_containers.results[0].id
+        matching = [c for c in existing_containers.results if c.region_name == atlas_region]
+        if not matching:
+            raise ValueError(
+                f"No Atlas network container found for region {atlas_region}. "
+                "Ensure the Atlas cluster exists in this region."
+            )
+        container_id = matching[0].id
 
     # Create peering from Atlas side
     peering = atlas.NetworkPeering(

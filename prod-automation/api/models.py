@@ -675,6 +675,7 @@ class MongoDBConfigInput(BaseModel):
     db_username: str = Field(default="cortex", description="Database username")
     db_password: Optional[str] = Field(default=None, description="Database password (secret)")
     disk_size_gb: int = Field(default=10, description="Disk size in GB")
+    atlas_cidr_block: str = Field(default="192.168.248.0/21", description="Atlas VPC CIDR block for network container")
 
     # Required for 'atlas-peering' mode (existing cluster)
     atlas_project_id: Optional[str] = Field(default=None, description="Existing Atlas Project ID")
@@ -699,6 +700,7 @@ class MongoDBConfigResolved(BaseModel):
     db_username: str = "cortex"
     db_password: Optional[str] = None
     disk_size_gb: int = 10
+    atlas_cidr_block: str = "192.168.248.0/21"
     connection_uri: Optional[str] = None
 
 

@@ -510,6 +510,7 @@ def resolve_mongodb_config(
         db_username=input_config.db_username,
         db_password=input_config.db_password,
         disk_size_gb=input_config.disk_size_gb,
+        atlas_cidr_block=input_config.atlas_cidr_block,
         connection_uri=input_config.connection_uri,
     )
 

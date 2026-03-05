@@ -351,6 +351,7 @@ def _load_mongodb_config(config: pulumi.Config) -> Optional[MongoDBConfigResolve
         db_username=config.get("mongodbDbUsername") or "cortex",
         db_password=config.get("mongodbDbPassword"),
         disk_size_gb=_parse_int(config.get("mongodbDiskSizeGb"), 10),
+        atlas_cidr_block=config.get("mongodbAtlasCidrBlock") or "192.168.248.0/21",
         connection_uri=config.get("mongodbConnectionUri"),
     )
 

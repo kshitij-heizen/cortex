@@ -517,20 +517,21 @@ def validate_mongodb_config(
                     message="Atlas private key is required for atlas/atlas-peering mode",
                 )
             )
-        if not mongodb_config.atlas_org_id:
-            errors.append(
-                ValidationErrorDetail(
-                    field="mongodb_config.atlas_org_id",
-                    message="Atlas org ID is required for atlas/atlas-peering mode",
+        if mongodb_config.mode == "atlas":
+            if not mongodb_config.atlas_org_id:
+                errors.append(
+                    ValidationErrorDetail(
+                        field="mongodb_config.atlas_org_id",
+                        message="Atlas org ID is required when creating a new cluster",
+                    )
                 )
-            )
-        if mongodb_config.mode == "atlas" and not mongodb_config.atlas_project_name:
-            errors.append(
-                ValidationErrorDetail(
-                    field="mongodb_config.atlas_project_name",
-                    message="Atlas project name is required when creating a new cluster",
+            if not mongodb_config.atlas_project_name:
+                errors.append(
+                    ValidationErrorDetail(
+                        field="mongodb_config.atlas_project_name",
+                        message="Atlas project name is required when creating a new cluster",
+                    )
                 )
-            )
         if mongodb_config.mode == "atlas-peering":
             if not mongodb_config.atlas_project_id:
                 errors.append(
