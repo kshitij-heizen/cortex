@@ -1,6 +1,5 @@
 vector:
-  role: "Stateless-Aggregator"
-  replicas: 2
+  role: "Agent"
 
   customConfig:
     api:
@@ -8,18 +7,29 @@ vector:
       address: "0.0.0.0:8687"
 
     sources:
-      app_logs:
-        type: http_server
-        address: "0.0.0.0:8686"
-        decoding:
-          codec: json
-        acknowledge_request: true
+      kubernetes_logs:
+        type: kubernetes_logs
+        extra_label_selector: "app.kubernetes.io/name in (cortex-app, cortex-ingestion)"
+
+    transforms:
+      parse_json:
+        type: remap
+        inputs:
+          - kubernetes_logs
+        source: |
+          parsed, err = parse_json(.message)
+          if err == null {
+            . = merge(., parsed)
+          }
+          .kubernetes_namespace = .kubernetes.pod_namespace
+          .kubernetes_pod = .kubernetes.pod_name
+          .kubernetes_container = .kubernetes.container_name
 
     sinks:
       clickhouse_logs:
         type: clickhouse
         inputs:
-          - app_logs
+          - parse_json
         endpoint: "http://clickhouse-cluster01.clickhouse.svc.cluster.local:8123"
         database: cortex
         table: cortex_logs_distributed
@@ -40,46 +50,25 @@ vector:
   service:
     enabled: true
     ports:
-      - name: http-logs
-        port: 8686
-        targetPort: 8686
-        protocol: TCP
       - name: api
         port: 8687
         targetPort: 8687
         protocol: TCP
 
   ingress:
-    enabled: true
-    className: nginx-inc
-    hosts:
-      - host: vector.usecortex.opengig.work
-        paths:
-          - path: /
-            pathType: Prefix
-            port:
-              number: 8686
-    tls:
-      - hosts:
-          - vector.usecortex.opengig.work
-        secretName: vector-tls
-    annotations:
-      nginx.org/proxy-connect-timeout: "60s"
-      nginx.org/proxy-read-timeout: "60s"
-      nginx.org/client-max-body-size: "50m"
-      cert-manager.io/cluster-issuer: "letsencrypt-prod"
-      acme.cert-manager.io/http01-edit-in-place: "true"
-      nginx.org/redirect-to-https: "false"
-      
+    enabled: false
 
   resources:
     requests:
-      cpu: 100m
-      memory: 256Mi
+      cpu: 50m
+      memory: 128Mi
     limits:
-      cpu: 1000m
-      memory: 1Gi
+      cpu: 500m
+      memory: 512Mi
 
   persistence:
     enabled: true
     size: 2Gi
+
+  tolerations:
+    - operator: Exists

@@ -487,6 +487,7 @@ def validate_kafka_config(
 
 def validate_mongodb_config(
     mongodb_config: Optional[MongoDBConfigResolved],
+    vpc_config: Optional[VpcConfigResolved] = None,
 ) -> list[ValidationErrorDetail]:
     """Validate MongoDB configuration."""
     errors: list[ValidationErrorDetail] = []
@@ -547,6 +548,32 @@ def validate_mongodb_config(
                         message="Atlas cluster name is required for atlas-peering mode",
                     )
                 )
+
+    # Check Atlas CIDR doesn't overlap with VPC CIDRs
+    if mongodb_config.mode in ("atlas", "atlas-peering") and vpc_config:
+        atlas_cidr = mongodb_config.atlas_cidr_block
+        if cidrs_overlap(atlas_cidr, vpc_config.cidr_block):
+            errors.append(
+                ValidationErrorDetail(
+                    field="mongodb_config.atlas_cidr_block",
+                    message=(
+                        f"Atlas CIDR {atlas_cidr} overlaps with VPC CIDR "
+                        f"{vpc_config.cidr_block}. Peering requires non-overlapping CIDRs."
+                    ),
+                )
+            )
+        for i, secondary in enumerate(vpc_config.secondary_cidr_blocks):
+            if cidrs_overlap(atlas_cidr, secondary):
+                errors.append(
+                    ValidationErrorDetail(
+                        field="mongodb_config.atlas_cidr_block",
+                        message=(
+                            f"Atlas CIDR {atlas_cidr} overlaps with secondary VPC CIDR "
+                            f"{secondary}. Peering requires non-overlapping CIDRs."
+                        ),
+                    )
+                )
+
     return errors
 
 
@@ -577,7 +604,7 @@ def validate_resolved_config(config: CustomerConfigResolved) -> list[ValidationE
     errors.extend(validate_kafka_config(config.kafka_config))
 
     # MongoDB configuration
-    errors.extend(validate_mongodb_config(config.mongodb_config))
+    errors.extend(validate_mongodb_config(config.mongodb_config, config.vpc_config))
 
     return errors
 
