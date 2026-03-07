@@ -664,8 +664,8 @@ class MongoDBConfigInput(BaseModel):
         description="'atlas' = provision Atlas cluster + VPC peering, 'atlas-peering' = VPC peer to existing Atlas cluster, 'external' = just use connection URI",
     )
     # Always required for atlas/atlas-peering modes
-    atlas_public_key: Optional[str] = Field(default=None, description="Atlas API public key")
-    atlas_private_key: Optional[str] = Field(default=None, description="Atlas API private key (secret)")
+    atlas_client_id: Optional[str] = Field(default=None, description="Atlas Service Account client ID")
+    atlas_client_secret: Optional[str] = Field(default=None, description="Atlas Service Account client secret (secret)")
     atlas_org_id: Optional[str] = Field(default=None, description="Atlas Organization ID")
 
     # Required for 'atlas' mode (create new cluster)
@@ -689,8 +689,8 @@ class MongoDBConfigResolved(BaseModel):
     """Fully resolved MongoDB configuration."""
 
     mode: str
-    atlas_public_key: Optional[str] = None
-    atlas_private_key: Optional[str] = None
+    atlas_client_id: Optional[str] = None
+    atlas_client_secret: Optional[str] = None
     atlas_org_id: Optional[str] = None
     atlas_project_name: Optional[str] = None
     atlas_project_id: Optional[str] = None

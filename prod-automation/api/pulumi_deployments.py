@@ -288,10 +288,10 @@ class PulumiDeploymentsClient:
             mongo = config.mongodb_config
             commands.append(config_set("mongodbEnabled", "true"))
             commands.append(config_set("mongodbMode", mongo.mode))
-            if mongo.atlas_public_key:
-                commands.append(config_set("mongodbAtlasPublicKey", mongo.atlas_public_key))
-            if mongo.atlas_private_key:
-                commands.append(config_set("mongodbAtlasPrivateKey", mongo.atlas_private_key, secret=True))
+            if mongo.atlas_client_id:
+                commands.append(config_set("mongodbAtlasClientId", mongo.atlas_client_id))
+            if mongo.atlas_client_secret:
+                commands.append(config_set("mongodbAtlasClientSecret", mongo.atlas_client_secret, secret=True))
             if mongo.atlas_org_id:
                 commands.append(config_set("mongodbAtlasOrgId", mongo.atlas_org_id))
             if mongo.atlas_project_name:

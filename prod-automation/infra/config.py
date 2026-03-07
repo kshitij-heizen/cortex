@@ -340,8 +340,8 @@ def _load_mongodb_config(config: pulumi.Config) -> Optional[MongoDBConfigResolve
         return None
     return MongoDBConfigResolved(
         mode=config.get("mongodbMode") or "atlas",
-        atlas_public_key=config.get("mongodbAtlasPublicKey"),
-        atlas_private_key=config.get("mongodbAtlasPrivateKey"),
+        atlas_client_id=config.get("mongodbAtlasClientId"),
+        atlas_client_secret=config.get("mongodbAtlasClientSecret"),
         atlas_org_id=config.get("mongodbAtlasOrgId"),
         atlas_project_name=config.get("mongodbAtlasProjectName"),
         atlas_project_id=config.get("mongodbAtlasProjectId"),

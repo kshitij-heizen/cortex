@@ -499,8 +499,8 @@ def resolve_mongodb_config(
 
     return MongoDBConfigResolved(
         mode=input_config.mode,
-        atlas_public_key=input_config.atlas_public_key,
-        atlas_private_key=input_config.atlas_private_key,
+        atlas_client_id=input_config.atlas_client_id,
+        atlas_client_secret=input_config.atlas_client_secret,
         atlas_org_id=input_config.atlas_org_id,
         atlas_project_name=input_config.atlas_project_name,
         atlas_project_id=input_config.atlas_project_id,

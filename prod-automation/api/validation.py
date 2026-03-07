@@ -504,18 +504,18 @@ def validate_mongodb_config(
                 )
             )
     elif mongodb_config.mode in ("atlas", "atlas-peering"):
-        if not mongodb_config.atlas_public_key:
+        if not mongodb_config.atlas_client_id:
             errors.append(
                 ValidationErrorDetail(
-                    field="mongodb_config.atlas_public_key",
-                    message="Atlas public key is required for atlas/atlas-peering mode",
+                    field="mongodb_config.atlas_client_id",
+                    message="Atlas Service Account client ID is required for atlas/atlas-peering mode",
                 )
             )
-        if not mongodb_config.atlas_private_key:
+        if not mongodb_config.atlas_client_secret:
             errors.append(
                 ValidationErrorDetail(
-                    field="mongodb_config.atlas_private_key",
-                    message="Atlas private key is required for atlas/atlas-peering mode",
+                    field="mongodb_config.atlas_client_secret",
+                    message="Atlas Service Account client secret is required for atlas/atlas-peering mode",
                 )
             )
         if mongodb_config.mode == "atlas":

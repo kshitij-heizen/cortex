@@ -35,8 +35,8 @@ def provision_atlas_cluster(
     # Configure Atlas provider
     atlas_provider = atlas.Provider(
         f"{customer_id}-atlas-provider",
-        public_key=mongo_config.atlas_public_key,
-        private_key=mongo_config.atlas_private_key,
+        client_id=mongo_config.atlas_client_id,
+        client_secret=mongo_config.atlas_client_secret,
     )
 
     opts = pulumi.ResourceOptions(provider=atlas_provider)
