@@ -709,7 +709,6 @@ class EsoSecretsInput(BaseModel):
 
     falkordb_password: str = Field(default="", description="FalkorDB password")
     milvus_token: str = Field(default="", description="Milvus auth token")
-    mongodb_password: str = Field(default="", description="MongoDB Atlas database password")
     google_api_key: str = Field(default="", description="Google API key")
     gemini_api_key: str = Field(default="", description="Gemini API key")
     github_argocd_cd_token: str = Field(default="", description="GitHub PAT for ArgoCD repo access")

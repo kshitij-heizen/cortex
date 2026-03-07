@@ -106,6 +106,8 @@ def provision_atlas_cluster(
     # In 'atlas' mode we create one explicitly; in 'atlas-peering' mode
     # the container already exists (created when the cluster was provisioned).
     atlas_region = mongo_config.cluster_region.replace("-", "_").upper()
+    # AWS region format for the peering accepter (e.g., "us-east-1")
+    aws_accepter_region = aws_region  # already in AWS format from caller
 
     if mongo_config.mode == "atlas":
         atlas_container = atlas.NetworkContainer(
@@ -138,7 +140,7 @@ def provision_atlas_cluster(
         project_id=project_id,
         container_id=container_id,
         provider_name="AWS",
-        accepter_region_name=atlas_region,
+        accepter_region_name=aws_accepter_region,
         aws_account_id=aws_account_id,
         vpc_id=vpc_id,
         route_table_cidr_block=vpc_cidr,

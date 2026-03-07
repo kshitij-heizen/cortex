@@ -207,6 +207,43 @@ class PulumiDeploymentsClient:
 
         commands.append(config_set("zonalShiftEnabled", str(eks.zonal_shift_enabled).lower()))
 
+        # Bootstrap node group
+        bng = eks.bootstrap_node_group
+        commands.append(config_set("bootstrapInstanceTypes", ",".join(bng.instance_types)))
+        commands.append(config_set("bootstrapDesiredSize", str(bng.desired_size)))
+        commands.append(config_set("bootstrapMinSize", str(bng.min_size)))
+        commands.append(config_set("bootstrapMaxSize", str(bng.max_size)))
+        commands.append(config_set("bootstrapDiskSize", str(bng.disk_size)))
+        if bng.labels:
+            commands.append(config_set("bootstrapLabels", json.dumps(bng.labels)))
+
+        # Karpenter
+        karp = eks.karpenter
+        commands.append(config_set("karpenterVersion", karp.version))
+        commands.append(
+            config_set("karpenterInstanceFamilies", ",".join(karp.node_pool.instance_families))
+        )
+        commands.append(
+            config_set("karpenterInstanceSizes", ",".join(karp.node_pool.instance_sizes))
+        )
+        commands.append(
+            config_set("karpenterCapacityTypes", ",".join(karp.node_pool.capacity_types))
+        )
+        commands.append(
+            config_set("karpenterArchitectures", ",".join(karp.node_pool.architectures))
+        )
+        commands.append(config_set("karpenterCpuLimit", str(karp.node_pool.cpu_limit)))
+        commands.append(config_set("karpenterMemoryLimitGb", str(karp.node_pool.memory_limit_gb)))
+        commands.append(
+            config_set("karpenterConsolidationPolicy", karp.disruption.consolidation_policy)
+        )
+        commands.append(
+            config_set(
+                "karpenterConsolidateAfterSeconds",
+                str(karp.disruption.consolidate_after_seconds),
+            )
+        )
+
         addons = eks.addons
         commands.append(config_set("addonVpcCni", str(addons.vpc_cni.enabled).lower()))
         commands.append(config_set("addonCoredns", str(addons.coredns.enabled).lower()))
@@ -289,11 +326,6 @@ class PulumiDeploymentsClient:
         ))
         commands.append(config_set("esoGoogleApiKey", eso.google_api_key if eso else ""))
         commands.append(config_set("esoGeminiApiKey", eso.gemini_api_key if eso else ""))
-        commands.append(config_set(
-            "esoMongodbPassword",
-            eso.mongodb_password if eso else "",
-            secret=True,
-        ))
         commands.append(config_set(
             "esoGithubArgocdCdToken",
             eso.github_argocd_cd_token if eso else "",
