@@ -1,4 +1,4 @@
-"""Deployment management endpoints."""
+"""Deployment management endpoints — Automation API (S3 backend)."""
 
 import asyncio
 import json
@@ -16,7 +16,7 @@ from api.models import (
     DeployRequest,
     DestroyRequest,
 )
-from api.pulumi_deployments import PulumiDeploymentsClient
+from api.pulumi_engine import PulumiEngine
 from api.services.addon_installer import AddonInstallerService
 from api.settings import settings
 
@@ -24,9 +24,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/deployments", tags=["deployments"])
 
+# Delay before auto-installing addons so access node user-data can finish
+AUTO_INSTALL_ADDONS_DELAY_SECONDS = 90
+
 
 def _parse_deployment_outputs(outputs_raw: str | None) -> dict | None:
-    """Safely parse deployment outputs JSON. Returns None if missing or invalid."""
+    """Safely parse deployment outputs JSON."""
     if not outputs_raw or not outputs_raw.strip():
         return None
     try:
@@ -35,17 +38,17 @@ def _parse_deployment_outputs(outputs_raw: str | None) -> dict | None:
         return None
 
 
-# Delay before auto-installing addons so access node user-data (kubectl, helm, kubeconfig) can finish
-AUTO_INSTALL_ADDONS_DELAY_SECONDS = 90
+def get_pulumi_engine() -> PulumiEngine:
+    """Get a PulumiEngine instance configured from settings."""
+    return PulumiEngine(
+        backend_url=settings.pulumi_backend_url,
+        secrets_provider=settings.pulumi_secrets_provider,
+        work_dir=settings.pulumi_work_dir,
+    )
 
 
 async def _auto_install_addons(customer_id: str, environment: str) -> None:
-    """Auto-trigger addon installation after deployment succeeds.
-
-    Runs as a fire-and-forget background task. Errors are logged but do not
-    affect the deployment status -- the user can always re-trigger manually
-    via POST .../addons/argocd/install.
-    """
+    """Auto-trigger addon installation after deployment succeeds."""
     try:
         config = config_storage.get(customer_id)
         if not config or not config.addons:
@@ -55,13 +58,11 @@ async def _auto_install_addons(customer_id: str, environment: str) -> None:
         if not argocd or not argocd.enabled:
             return
 
-        logger.info(
-            "Auto-installing ArgoCD for %s-%s", customer_id, environment
-        )
+        logger.info("Auto-installing addons for %s-%s", customer_id, environment)
         installer = AddonInstallerService(customer_id, environment)
-        result = await installer.install_argocd(argocd)
+        result = await installer.install_all_addons()
         logger.info(
-            "ArgoCD install triggered for %s-%s: command_id=%s",
+            "Addon install triggered for %s-%s: command_id=%s",
             customer_id,
             environment,
             result.ssm_command_id,
@@ -74,73 +75,51 @@ async def _auto_install_addons(customer_id: str, environment: str) -> None:
         )
 
 
-async def _auto_install_addons_after_delay(
-    customer_id: str, environment: str
-) -> None:
-    """Wait for access node user-data to finish, then trigger addon install."""
-    await asyncio.sleep(AUTO_INSTALL_ADDONS_DELAY_SECONDS)
-    await _auto_install_addons(customer_id, environment)
-
-
-def get_pulumi_client() -> PulumiDeploymentsClient:
-    """Get Pulumi Deployments client."""
-    return PulumiDeploymentsClient(
-        organization=settings.pulumi_org,
-        access_token=settings.pulumi_access_token,
-        aws_access_key_id=settings.aws_access_key_id,
-        aws_secret_access_key=settings.aws_secret_access_key,
-        github_token=settings.github_token or None,
-    )
-
-
 async def run_deployment(
     config: CustomerConfigResolved,
     environment: str,
     database: Database,
 ) -> None:
-    """Background task to run customer deployment."""
+    """Background task to run customer deployment via Automation API."""
     stack_name = f"{config.customer_id}-{environment}"
 
     try:
-        client = get_pulumi_client()
+        engine = get_pulumi_engine()
 
         database.update_deployment_status(
             stack_name=stack_name,
             status=DeploymentStatus.IN_PROGRESS,
         )
 
-        try:
-            await client.create_stack(
-                project_name=settings.pulumi_project,
+        # Run pulumi up in a thread (it's blocking)
+        result = await asyncio.to_thread(engine.deploy, stack_name, config)
+
+        if result.summary.result == "succeeded":
+            # Get outputs and store them
+            outputs = await asyncio.to_thread(engine.get_outputs, stack_name)
+            database.update_deployment_status(
                 stack_name=stack_name,
+                status=DeploymentStatus.SUCCEEDED,
+                outputs=json.dumps(outputs),
+                error_message="",
             )
-        except Exception:
-            pass
 
-        await client.configure_deployment_settings(
-            project_name=settings.pulumi_project,
-            stack_name=stack_name,
-            config=config,
-            repo_url=settings.git_repo_url,
-            repo_branch=settings.git_repo_branch,
-            repo_dir=settings.git_repo_dir,
-        )
-
-        result = await client.trigger_deployment(
-            project_name=settings.pulumi_project,
-            stack_name=stack_name,
-            operation="update",
-        )
-
-        deployment_id = result.get("id", "")
-
-        database.update_deployment_status(
-            stack_name=stack_name,
-            status=DeploymentStatus.IN_PROGRESS,
-            pulumi_deployment_id=deployment_id,
-        )
+            # Auto-install addons after delay
+            logger.info(
+                "Waiting %ds for access node user-data before addon install",
+                AUTO_INSTALL_ADDONS_DELAY_SECONDS,
+            )
+            await asyncio.sleep(AUTO_INSTALL_ADDONS_DELAY_SECONDS)
+            await _auto_install_addons(config.customer_id, environment)
+        else:
+            database.update_deployment_status(
+                stack_name=stack_name,
+                status=DeploymentStatus.FAILED,
+                error_message=f"Pulumi up finished with result: {result.summary.result}",
+            )
 
     except Exception as e:
+        logger.exception("Deployment failed for %s", stack_name)
         database.update_deployment_status(
             stack_name=stack_name,
             status=DeploymentStatus.FAILED,
@@ -153,8 +132,6 @@ async def run_deployment(
     response_model=DeploymentResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Deploy customer infrastructure",
-    description="Trigger infrastructure deployment for a customer using their stored "
-    "configuration.",
 )
 async def deploy(
     customer_id: str,
@@ -217,75 +194,18 @@ async def deploy(
     "/{customer_id}/{environment}/status",
     response_model=CustomerDeployment,
     summary="Get deployment status",
-    description="Get the current status of a customer deployment.",
 )
 async def get_deployment_status(
     customer_id: str,
     environment: str = "prod",
 ) -> CustomerDeployment:
-    """Get the current deployment status."""
+    """Get the current deployment status (reads from local database)."""
     deployment = db.get_deployment(customer_id, environment)
     if not deployment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Deployment for {customer_id}-{environment} not found",
         )
-
-    if (
-        deployment.status
-        in (
-            DeploymentStatus.IN_PROGRESS,
-            DeploymentStatus.DESTROYING,
-        )
-        and deployment.pulumi_deployment_id
-    ):
-        try:
-            client = get_pulumi_client()
-            pulumi_status = await client.get_deployment_status(
-                project_name=settings.pulumi_project,
-                stack_name=deployment.stack_name,
-                deployment_id=deployment.pulumi_deployment_id,
-            )
-
-            status_value = pulumi_status.get("status", "")
-            is_destroying = deployment.status == DeploymentStatus.DESTROYING
-
-            if status_value == "succeeded":
-                if is_destroying:
-                    db.update_deployment_status(
-                        stack_name=deployment.stack_name,
-                        status=DeploymentStatus.DESTROYED,
-                        outputs="",
-                        error_message="",
-                    )
-                else:
-                    outputs = await client.get_stack_outputs(
-                        project_name=settings.pulumi_project,
-                        stack_name=deployment.stack_name,
-                    )
-                    db.update_deployment_status(
-                        stack_name=deployment.stack_name,
-                        status=DeploymentStatus.SUCCEEDED,
-                        outputs=json.dumps(outputs),
-                        error_message="",
-                    )
-                updated = db.get_deployment(customer_id, environment)
-                if updated:
-                    deployment = updated
-            elif status_value == "failed":
-                error_msg = pulumi_status.get("message", "Operation failed")
-                if is_destroying:
-                    error_msg = f"Destroy failed: {error_msg}"
-                db.update_deployment_status(
-                    stack_name=deployment.stack_name,
-                    status=DeploymentStatus.FAILED,
-                    error_message=error_msg,
-                )
-                updated = db.get_deployment(customer_id, environment)
-                if updated:
-                    deployment = updated
-        except Exception:
-            pass
 
     return CustomerDeployment(
         id=deployment.id,
@@ -307,7 +227,6 @@ async def get_deployment_status(
     "/{customer_id}",
     response_model=list[CustomerDeployment],
     summary="List customer deployments",
-    description="List all deployments for a customer across environments.",
 )
 async def list_customer_deployments(customer_id: str) -> list[CustomerDeployment]:
     """List all deployments for a customer."""
@@ -336,32 +255,35 @@ async def run_destroy(
     environment: str,
     database: Database,
 ) -> None:
-    """Background task to destroy customer infrastructure."""
+    """Background task to destroy customer infrastructure via Automation API."""
     stack_name = f"{customer_id}-{environment}"
 
     try:
-        client = get_pulumi_client()
+        engine = get_pulumi_engine()
 
         database.update_deployment_status(
             stack_name=stack_name,
             status=DeploymentStatus.DESTROYING,
         )
 
-        result = await client.trigger_deployment(
-            project_name=settings.pulumi_project,
-            stack_name=stack_name,
-            operation="destroy",
-        )
+        result = await asyncio.to_thread(engine.destroy, stack_name)
 
-        deployment_id = result.get("id", "")
-
-        database.update_deployment_status(
-            stack_name=stack_name,
-            status=DeploymentStatus.DESTROYING,
-            pulumi_deployment_id=deployment_id,
-        )
+        if result.summary.result == "succeeded":
+            database.update_deployment_status(
+                stack_name=stack_name,
+                status=DeploymentStatus.DESTROYED,
+                outputs="",
+                error_message="",
+            )
+        else:
+            database.update_deployment_status(
+                stack_name=stack_name,
+                status=DeploymentStatus.FAILED,
+                error_message=f"Destroy finished with result: {result.summary.result}",
+            )
 
     except Exception as e:
+        logger.exception("Destroy failed for %s", stack_name)
         database.update_deployment_status(
             stack_name=stack_name,
             status=DeploymentStatus.FAILED,
@@ -374,8 +296,6 @@ async def run_destroy(
     response_model=DeploymentResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Destroy customer infrastructure",
-    description="Trigger destruction of customer infrastructure. Requires explicit "
-    "confirmation. This operation cannot be undone.",
 )
 async def destroy(
     customer_id: str,

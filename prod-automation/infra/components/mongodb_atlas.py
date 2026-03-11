@@ -81,7 +81,7 @@ def provision_atlas_cluster(
         )
 
         connection_string = cluster.connection_strings.apply(
-            lambda cs: cs.standard_srv if cs else ""
+            lambda cs: cs[0].standard_srv if cs and len(cs) > 0 else ""
         )
 
     else:
@@ -102,37 +102,36 @@ def provision_atlas_cluster(
 
     # --- VPC Peering ---
 
-    # Atlas requires a network container for VPC peering.
-    # In 'atlas' mode we create one explicitly; in 'atlas-peering' mode
-    # the container already exists (created when the cluster was provisioned).
+    # Atlas auto-creates a network container when a cluster is provisioned.
+    # In both modes we look up the existing container rather than creating one,
+    # which avoids CONTAINER_ALREADY_EXISTS errors.
     atlas_region = mongo_config.cluster_region.replace("-", "_").upper()
     # AWS region format for the peering accepter (e.g., "us-east-1")
     aws_accepter_region = aws_region  # already in AWS format from caller
 
-    if mongo_config.mode == "atlas":
-        atlas_container = atlas.NetworkContainer(
-            f"{customer_id}-atlas-container",
-            project_id=project_id,
-            atlas_cidr_block=mongo_config.atlas_cidr_block,
-            provider_name="AWS",
-            region_name=atlas_region,
-            opts=opts,
-        )
-        container_id = atlas_container.id
-    else:
-        # Look up existing containers for the project, filtered by region
-        existing_containers = atlas.get_network_containers(
-            project_id=mongo_config.atlas_project_id,
+    # Look up the container that Atlas auto-created for this project/region.
+    def _get_container_id(pid: str) -> str:
+        containers = atlas.get_network_containers(
+            project_id=pid,
             provider_name="AWS",
             opts=pulumi.InvokeOptions(provider=atlas_provider),
         )
-        matching = [c for c in existing_containers.results if c.region_name == atlas_region]
+        matching = [c for c in containers.results if c.region_name == atlas_region]
         if not matching:
             raise ValueError(
                 f"No Atlas network container found for region {atlas_region}. "
                 "Ensure the Atlas cluster exists in this region."
             )
-        container_id = matching[0].id
+        return matching[0].id
+
+    if mongo_config.mode == "atlas":
+        # Chain through cluster.id so the lookup only runs after the cluster
+        # (and its auto-created container) is fully provisioned.
+        container_id = pulumi.Output.all(cluster.id, project_id).apply(
+            lambda args: _get_container_id(args[1])
+        )
+    else:
+        container_id = _get_container_id(mongo_config.atlas_project_id)
 
     # Create peering from Atlas side
     peering = atlas.NetworkPeering(

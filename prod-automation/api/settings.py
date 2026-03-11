@@ -10,22 +10,18 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    pulumi_access_token: str = ""
-    pulumi_org: str = ""
-    pulumi_project: str = ""
+    # Pulumi S3 backend
+    pulumi_backend_url: str = "s3://my-pulumi-state-bucket"
+    pulumi_secrets_provider: str = "awskms://alias/pulumi-secrets"
+    pulumi_work_dir: str = "."
 
-    git_repo_url: str = ""
-    git_repo_branch: str = "main"
-    git_repo_dir: str = "."
-    github_token: str = ""
-
+    # AWS credentials
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     aws_region: str = "us-east-1"
 
+    # Config storage
     config_storage_path: str = "config"
-
-    pulumi_webhook_secret: str = ""  # Optional: HMAC secret for webhook signature verification
 
 
 @lru_cache
