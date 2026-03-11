@@ -182,7 +182,14 @@ spec:
 """
 
     def generate_customer_apps(self) -> Dict[str, str]:
-        repo_url = "https://github.com/opengig/cortex.git"
+        addons = getattr(self.config, "addons", None)
+        argocd = getattr(addons, "argocd", None) if addons else None
+        repo_cfg = getattr(argocd, "repository", None) if argocd else None
+
+        if repo_cfg and getattr(repo_cfg, "url", None):
+            repo_url = repo_cfg.url
+        else:
+            repo_url = f"https://github.com/{settings.github_repo}.git"
         customer_path = f"gitops/apps/{self.customer_id}"
         values_ref = "values"
 
@@ -198,7 +205,7 @@ spec:
       helm:
         releaseName: cortex-app
         valueFiles:
-          - ${{values}}/customers/{self.customer_id}/cortex-app-values.yaml
+          - $values/customers/{self.customer_id}/cortex-app-values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: cortex-app
@@ -232,7 +239,7 @@ spec:
       helm:
         releaseName: cortex-ingestion
         valueFiles:
-          - ${{values}}/customers/{self.customer_id}/cortex-ingestion-values.yaml
+          - $values/customers/{self.customer_id}/cortex-ingestion-values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: cortex-ingestion
@@ -266,7 +273,7 @@ spec:
       helm:
         releaseName: nextjs
         valueFiles:
-          - ${{values}}/customers/{self.customer_id}/nextjs-values.yaml
+          - $values/customers/{self.customer_id}/nextjs-values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: nextjs
@@ -300,7 +307,7 @@ spec:
       helm:
         releaseName: monitoring-ingresses
         valueFiles:
-          - ${{values}}/customers/{self.customer_id}/monitoring-values.yaml
+          - $values/customers/{self.customer_id}/monitoring-values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
@@ -333,7 +340,7 @@ spec:
       helm:
         releaseName: falkordb
         valueFiles:
-          - ${{values}}/customers/{self.customer_id}/falkordb-values.yaml
+          - $values/customers/{self.customer_id}/falkordb-values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: falkordb-{self.customer_id}
@@ -367,7 +374,7 @@ spec:
       helm:
         releaseName: milvus
         valueFiles:
-          - ${{values}}/customers/{self.customer_id}/milvus-values.yaml
+          - $values/customers/{self.customer_id}/milvus-values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: milvus-{self.customer_id}
@@ -400,7 +407,7 @@ spec:
       helm:
         releaseName: falkordb-dashboard
         valueFiles:
-          - ${{values}}/customers/{self.customer_id}/falkordb-dashboard-values.yaml
+          - $values/customers/{self.customer_id}/falkordb-dashboard-values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: falkordb-dashboard
