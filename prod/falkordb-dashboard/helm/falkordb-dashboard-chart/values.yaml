@@ -1,0 +1,24 @@
+replicaCount: 1
+
+image:
+  repository: falkordb/falkordb-browser
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: 150m
+    memory: 250Mi
+  limits:
+    cpu: 500m
+    memory: 800Mi
+
+nodeSelector:
+  role: general
+
+ingress:
+  enabled: true
+  className: nginx-inc
+  hostname: dashboard.falkordb.usecortex.opengig.work
+  tls:
+    secretName: falkordb-dashboard-tls
+    issuerName: letsencrypt-prod

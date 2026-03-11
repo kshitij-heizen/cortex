@@ -104,6 +104,16 @@ async def run_deployment(
                 error_message="",
             )
 
+            # Write GitOps values and applications to Git
+            from api.services.gitops_writer import GitOpsWriter
+
+            try:
+                writer = GitOpsWriter(config, outputs)
+                await asyncio.to_thread(writer.push_to_github)
+                logger.info("GitOps values pushed for %s", stack_name)
+            except Exception:
+                logger.exception("GitOps write failed for %s", stack_name)
+
             # Auto-install addons after delay
             logger.info(
                 "Waiting %ds for access node user-data before addon install",

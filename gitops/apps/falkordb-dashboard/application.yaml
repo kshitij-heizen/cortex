@@ -12,7 +12,9 @@ spec:
   source:
     repoURL: https://github.com/opengig/cortex.git
     targetRevision: main
-    path: prod/falkordb-dashboard
+    path: prod/falkordb-dashboard/helm/falkordb-dashboard-chart
+    helm:
+      releaseName: falkordb-dashboard
   destination:
     server: https://kubernetes.default.svc
     namespace: falkordb-dashboard

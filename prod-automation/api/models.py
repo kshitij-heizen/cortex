@@ -535,6 +535,7 @@ class ArgoCDRepoConfig(BaseModel):
     url: str = Field(..., description="Git repository URL")
     username: str = Field(default="git", description="Git username")
     password: str = Field(default="", description="Git password or personal access token")
+    branch: str = Field(default="main", description="Git branch for ArgoCD to track")
 
 
 class ArgoCDAddonInput(BaseModel):
@@ -731,6 +732,11 @@ class CustomerConfigInput(BaseModel):
         pattern=r"^[a-z0-9-]+$",
     )
 
+    domain: str = Field(
+        ...,
+        description="Customer domain for ingress hostnames (e.g. usecortex.opengig.work)",
+    )
+
     aws_config: AwsConfigInput
 
     vpc_config: Optional[VpcConfigInput] = None
@@ -753,6 +759,7 @@ class CustomerConfigResolved(BaseModel):
 
     customer_id: str
     environment: str
+    domain: str
 
     aws_config: AwsConfigResolved
     vpc_config: VpcConfigResolved

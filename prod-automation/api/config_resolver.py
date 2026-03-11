@@ -557,6 +557,7 @@ def resolve_customer_config(input_config: CustomerConfigInput) -> CustomerConfig
     return CustomerConfigResolved(
         customer_id=input_config.customer_id,
         environment=input_config.environment,
+        domain=input_config.domain,
         aws_config=aws_config,
         vpc_config=vpc_config,
         eks_config=eks_config,

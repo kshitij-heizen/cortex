@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     # Config storage
     config_storage_path: str = "config"
 
+    # GitHub (for GitOps writer)
+    github_pat: str = ""
+    github_repo: str = "opengig/cortex"
+
 
 @lru_cache
 def get_settings() -> Settings:

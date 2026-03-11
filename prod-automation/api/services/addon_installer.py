@@ -379,11 +379,11 @@ echo "==> FalkorDB addon installation complete!"
 # FALKORDB SHARED SECRET
 # =============================================================================
 echo "==> Creating FalkorDB shared secret..."
-FALKORDB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /byoc/$CUSTOMER_ID/cortex-app --region $REGION --query 'SecretString' --output text | jq -r '.FALKORDB_PASSWORD')
+        FALKORDB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id /byoc/$CUSTOMER_ID/cortex-app --region $REGION --query 'SecretString' --output text | jq -r '.FALKORDB_PASSWORD')
 kubectl create namespace falkordb-shared --dry-run=client -o yaml | kubectl apply -f -
-kubectl create namespace falkordb-cortexai --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace falkordb-$CUSTOMER_ID --dry-run=client -o yaml | kubectl apply -f -
 kubectl create secret generic falkordb-shared-password -n falkordb-shared --from-literal=password="$FALKORDB_PASSWORD" --dry-run=client -o yaml | kubectl apply -f -
-kubectl create secret generic falkordb-shared-password -n falkordb-cortexai --from-literal=password="$FALKORDB_PASSWORD" --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic falkordb-shared-password -n falkordb-$CUSTOMER_ID --from-literal=password="$FALKORDB_PASSWORD" --dry-run=client -o yaml | kubectl apply -f -
 unset FALKORDB_PASSWORD
 echo "==> FalkorDB shared secret created!"
 
@@ -681,8 +681,8 @@ echo "==> cert-manager installation complete!"
                         "  project: default",
                         "  source:",
                         f"    repoURL: {repo.url}",
-                        "    targetRevision: main",
-                        f"    path: {argocd_config.root_app_path}",
+                        f"    targetRevision: {repo.branch}",
+                        f"    path: gitops/apps/{self.customer_id}/",
                         "    directory:",
                         "      recurse: true",
                         "  destination:",

@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: falkordb-dashboard
+  labels:
+    app: falkordb-dashboard
+spec:
+  selector:
+    matchLabels:
+      app: falkordb-dashboard
+  replicas: { { .Values.replicaCount } }
+  template:
+    metadata:
+      labels:
+        app: falkordb-dashboard
+    spec:
+      nodeSelector: { { - toYaml .Values.nodeSelector | nindent 8 } }
+      containers:
+        - name: falkordb-dashboard
+          image: { { .Values.image.repository } }
+          resources: { { - toYaml .Values.resources | nindent 12 } }
+          ports:
+            - containerPort: 3000
+              name: ui
+      restartPolicy: Always
