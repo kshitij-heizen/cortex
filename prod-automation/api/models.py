@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class DeploymentStatus(str, Enum):
@@ -703,36 +703,6 @@ class MongoDBConfigResolved(BaseModel):
     atlas_cidr_block: str = "192.168.248.0/21"
     connection_uri: Optional[str] = None
 
-    @model_validator(mode="before")
-    @classmethod
-    def _migrate_legacy_schema(cls, data: dict) -> dict:
-        """Migrate configs saved with the old in-cluster MongoDB schema.
-
-        Old shape: {custom_mongodb, organization, replicas, storage_size, cpu, memory, version}
-        New shape: {mode, atlas_client_id, atlas_client_secret, ...}
-        """
-        if isinstance(data, dict) and "mode" not in data:
-            custom = data.get("custom_mongodb", True)
-            # Old custom_mongodb=True meant "use external URI", False meant "deploy in-cluster".
-            # Map both to 'external' so existing configs keep working — connection_uri can be
-            # updated via the API once the operator re-saves the config.
-            data = {
-                "mode": "external",
-                "connection_uri": data.get("connection_uri"),
-                "atlas_client_id": data.get("atlas_client_id") or data.get("atlas_public_key"),
-                "atlas_client_secret": data.get("atlas_client_secret") or data.get("atlas_private_key"),
-                "atlas_org_id": data.get("atlas_org_id"),
-                "atlas_project_name": data.get("atlas_project_name"),
-                "atlas_project_id": data.get("atlas_project_id"),
-                "atlas_cluster_name": data.get("atlas_cluster_name"),
-                "cluster_tier": data.get("cluster_tier", "M10"),
-                "cluster_region": data.get("cluster_region", "US_EAST_1"),
-                "db_username": data.get("db_username", "cortex"),
-                "db_password": data.get("db_password"),
-                "disk_size_gb": data.get("disk_size_gb", 10),
-                "atlas_cidr_block": data.get("atlas_cidr_block", "192.168.248.0/21"),
-            }
-        return data
 
 
 class EsoSecretsInput(BaseModel):
