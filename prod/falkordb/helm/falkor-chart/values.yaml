@@ -50,7 +50,7 @@ dataNode:
       value: "database-large-scalable"
       effect: "NoSchedule"
   storage:
-    storageClassName: gp3
+    storageClassName: falkordb-prod-gp3
     size: 100Gi
 
 sentinelNode:
@@ -65,7 +65,7 @@ sentinelNode:
   nodeSelector:
     role: general
   storage:
-    storageClassName: gp3
+    storageClassName: falkordb-general-gp3
     size: 10Gi
 
 monitoring:

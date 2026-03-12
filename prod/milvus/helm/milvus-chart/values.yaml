@@ -31,7 +31,7 @@ milvus:
   config:
     logLevel: info
     authEnabled: true
-    maxVectorFieldNum: 20
+    maxVectorFieldNum: 10
   components:
     proxy:
       replicas: 2

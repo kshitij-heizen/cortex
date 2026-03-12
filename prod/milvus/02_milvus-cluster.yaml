@@ -7,7 +7,7 @@ metadata:
     app: milvus
 spec:
   mode: cluster
-  
+
   # Global configuration
   config:
     milvus:
@@ -19,16 +19,16 @@ spec:
           authorizationEnabled: true
     # Increase max vector fields from default 4 to 20
     proxy:
-      maxVectorFieldNum: 20
-  
+      maxVectorFieldNum: 10
+
   # Component configurations
   components:
     # Disable built-in monitoring metrics endpoint if using external prometheus
     disableMetric: false
-    
+
     # Image configuration (optional - uses default if not specified)
     # image: milvusdb/milvus:v2.4.0
-    
+
     # Schedule on memory-optimized nodes (Karpenter memory-pool-xlarge)
     nodeSelector:
       role: memory-db-large-scalable
@@ -37,7 +37,7 @@ spec:
         operator: Equal
         value: database-large-scalable
         effect: NoSchedule
-    
+
     # Proxy - client-facing component
     proxy:
       replicas: 2
@@ -49,7 +49,7 @@ spec:
           cpu: "2"
           memory: "4Gi"
       serviceType: ClusterIP
-    
+
     # QueryNode - handles search/query requests
     queryNode:
       replicas: 2
@@ -60,7 +60,7 @@ spec:
         limits:
           cpu: "4"
           memory: "8Gi"
-    
+
     # DataNode - handles data insertion
     dataNode:
       replicas: 2
@@ -71,7 +71,7 @@ spec:
         limits:
           cpu: "2"
           memory: "4Gi"
-    
+
     # IndexNode - builds indexes
     indexNode:
       replicas: 1
@@ -82,7 +82,7 @@ spec:
         limits:
           cpu: "4"
           memory: "8Gi"
-    
+
     # MixCoord - consolidated coordinator (rootCoord, queryCoord, dataCoord, indexCoord)
     mixCoord:
       replicas: 1
@@ -121,7 +121,7 @@ spec:
             limits:
               cpu: "1"
               memory: "2Gi"
-    
+
     # MinIO for object storage
     storage:
       inCluster:
@@ -148,7 +148,7 @@ spec:
             limits:
               cpu: "2"
               memory: "4Gi"
-    
+
     # Message queue - using Pulsar (alternatively can use Kafka or Woodpecker)
     msgStreamType: pulsar
     pulsar:

@@ -1,0 +1,73 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-inc
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://helm.nginx.com/stable
+    chart: nginx-ingress
+    targetRevision: "1.4.0"
+    helm:
+      releaseName: nginx-inc
+      values: |
+        controller:
+          ingressClass:
+            name: nginx-inc
+            setAsDefaultIngress: true
+
+          config:
+            entries:
+              http2: "true"
+
+          enableTLSPassthrough: true
+
+          globalConfiguration:
+            create: false
+
+          service:
+            type: LoadBalancer
+            annotations:
+              service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+              service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+              service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+
+          replicaCount: 2
+
+          nodeSelector:
+            role: general
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nginx-inc
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: ""
+      kind: Service
+      name: nginx-inc-nginx-ingress-controller
+      jqPathExpressions:
+        - .spec.ports[].nodePort
+      jsonPointers:
+        - /metadata/annotations
+        - /metadata/finalizers
+        - /spec/externalTrafficPolicy
+        - /spec/allocateLoadBalancerNodePorts
+        - /spec/healthCheckNodePort
+        - /spec/clusterIP
+        - /spec/clusterIPs
+        - /spec/ipFamilies
+        - /spec/ipFamilyPolicy
+        - /status

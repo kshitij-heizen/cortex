@@ -1,16 +1,13 @@
 vector:
   role: "Agent"
-
   customConfig:
     api:
       enabled: true
       address: "0.0.0.0:8687"
-
     sources:
       kubernetes_logs:
         type: kubernetes_logs
         extra_label_selector: "app.kubernetes.io/name in (cortex-app, cortex-ingestion)"
-
     transforms:
       parse_json:
         type: remap
@@ -19,12 +16,11 @@ vector:
         source: |
           parsed, err = parse_json(.message)
           if err == null {
-            . = merge(., parsed)
+            . = merge!(., parsed)
           }
           .kubernetes_namespace = .kubernetes.pod_namespace
           .kubernetes_pod = .kubernetes.pod_name
           .kubernetes_container = .kubernetes.container_name
-
     sinks:
       clickhouse_logs:
         type: clickhouse
@@ -39,14 +35,14 @@ vector:
           max_bytes: 10485760
           timeout_secs: 5
         buffer:
-          type: disk
-          max_size: 536870912
+          type: memory
+          max_events: 10000
           when_full: block
+
         auth:
           strategy: basic
           user: default
           password: "gdfsgrt3t2234fd"
-
   service:
     enabled: true
     ports:
@@ -54,10 +50,8 @@ vector:
         port: 8687
         targetPort: 8687
         protocol: TCP
-
   ingress:
     enabled: false
-
   resources:
     requests:
       cpu: 50m
@@ -65,10 +59,8 @@ vector:
     limits:
       cpu: 500m
       memory: 512Mi
-
   persistence:
     enabled: true
-    size: 2Gi
-
+    type: emptyDir
   tolerations:
     - operator: Exists

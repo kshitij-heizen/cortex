@@ -243,6 +243,50 @@ echo "==> Verifying StorageClass..."
 kubectl get storageclass gp3
 
 # =============================================================================
+# FALKORDB STORAGE CLASSES
+# =============================================================================
+echo "==> Creating FalkorDB prod StorageClass (4000 IOPS, Retain)..."
+cat <<'FALKORDB_PROD_SC_EOF' | kubectl apply -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: falkordb-prod-gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  iops: "4000"
+  throughput: "250"
+  fsType: ext4
+  encrypted: "true"
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+FALKORDB_PROD_SC_EOF
+
+echo "==> Creating FalkorDB general StorageClass (sentinel)..."
+cat <<'FALKORDB_GEN_SC_EOF' | kubectl apply -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: falkordb-general-gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  fsType: ext4
+  encrypted: "true"
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+FALKORDB_GEN_SC_EOF
+
+echo "==> Verifying FalkorDB StorageClasses..."
+kubectl get storageclass | grep falkordb
+
+# =============================================================================
 # KARPENTER NODEPOOLS
 # =============================================================================
 echo "==> Creating Karpenter NodePools..."
@@ -682,7 +726,7 @@ echo "==> cert-manager installation complete!"
                         "  source:",
                         f"    repoURL: {repo.url}",
                         f"    targetRevision: {repo.branch}",
-                        f"    path: gitops/apps/{self.customer_id}/",
+                        f"    path: gitops/{self.customer_id}/apps/",
                         "    directory:",
                         "      recurse: true",
                         "  destination:",
