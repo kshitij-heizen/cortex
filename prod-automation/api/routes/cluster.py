@@ -33,10 +33,10 @@ async def get_ssm_status(
             detail=f"Deployment {customer_id}-{environment} not found",
         )
 
-    if deployment.status != DeploymentStatus.SUCCEEDED:
+    if deployment["status"] != DeploymentStatus.SUCCEEDED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Deployment is not ready. Status: {deployment.status.value}",
+            detail=f"Deployment is not ready. Status: {deployment['status'].value}",
         )
 
     try:
@@ -100,10 +100,10 @@ async def get_ssm_session(
             detail=f"Deployment {customer_id}-{environment} not found",
         )
 
-    if deployment.status != DeploymentStatus.SUCCEEDED:
+    if deployment["status"] != DeploymentStatus.SUCCEEDED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Deployment is not ready. Status: {deployment.status.value}",
+            detail=f"Deployment is not ready. Status: {deployment['status'].value}",
         )
 
     try:
@@ -142,10 +142,10 @@ async def start_access_node(
             detail=f"Deployment {customer_id}-{environment} not found",
         )
 
-    if deployment.status != DeploymentStatus.SUCCEEDED:
+    if deployment["status"] != DeploymentStatus.SUCCEEDED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Deployment is not ready. Status: {deployment.status.value}",
+            detail=f"Deployment is not ready. Status: {deployment['status'].value}",
         )
 
     try:
@@ -178,10 +178,10 @@ async def stop_access_node(
             detail=f"Deployment {customer_id}-{environment} not found",
         )
 
-    if deployment.status != DeploymentStatus.SUCCEEDED:
+    if deployment["status"] != DeploymentStatus.SUCCEEDED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Deployment is not ready. Status: {deployment.status.value}",
+            detail=f"Deployment is not ready. Status: {deployment['status'].value}",
         )
 
     try:
@@ -219,10 +219,10 @@ async def install_argocd(
             detail=f"Deployment {customer_id}-{environment} not found",
         )
 
-    if deployment.status != DeploymentStatus.SUCCEEDED:
+    if deployment["status"] != DeploymentStatus.SUCCEEDED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Deployment must be in SUCCEEDED state. Current: {deployment.status.value}",
+            detail=f"Deployment must be in SUCCEEDED state. Current: {deployment['status'].value}",
         )
 
     config = config_storage.get(customer_id)

@@ -27,9 +27,49 @@ app.include_router(cluster_router)
 
 
 @app.get("/health", tags=["health"])
-async def health_check() -> dict[str, str]:
+async def health_check():  # type: ignore[no-untyped-def]
     """Health check endpoint."""
-    return {"status": "healthy"}
+    from fastapi.responses import JSONResponse
+
+    checks: dict[str, str] = {}
+
+    try:
+        from api.database import db
+
+        db._client.admin.command("ping")
+        checks["mongodb"] = "ok"
+    except Exception as e:
+        checks["mongodb"] = f"error: {e}"
+
+    try:
+        import redis as redis_lib
+
+        from api.settings import settings
+
+        r = redis_lib.from_url(settings.redis_url, socket_connect_timeout=2)
+        r.ping()
+        checks["redis"] = "ok"
+    except Exception as e:
+        checks["redis"] = f"error: {e}"
+
+    try:
+        from worker.celery_app import celery_app as celery
+
+        inspector = celery.control.inspect(timeout=2)
+        active = inspector.active_queues()
+        if active:
+            checks["celery"] = f"ok ({len(active)} worker(s))"
+        else:
+            checks["celery"] = "no workers"
+    except Exception as e:
+        checks["celery"] = f"error: {e}"
+
+    all_ok = all(v.startswith("ok") for v in checks.values())
+    result = {"status": "healthy" if all_ok else "degraded", "checks": checks}
+
+    if not all_ok:
+        return JSONResponse(status_code=503, content=result)
+    return result
 
 
 if __name__ == "__main__":

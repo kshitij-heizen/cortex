@@ -20,7 +20,14 @@ class Settings(BaseSettings):
     aws_secret_access_key: str = ""
     aws_region: str = "us-east-1"
 
-    # Config storage
+    # MongoDB
+    mongodb_uri: str = "mongodb://localhost:27017"
+    mongodb_database: str = "byoc_platform"
+
+    # Redis (Celery broker)
+    redis_url: str = "redis://redis:6379/0"
+
+    # Config storage — kept for backward compat but now backed by MongoDB
     config_storage_path: str = "config"
 
     # GitHub (for GitOps writer)

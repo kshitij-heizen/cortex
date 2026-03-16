@@ -852,7 +852,7 @@ class DeploymentResponse(BaseModel):
 class CustomerDeployment(BaseModel):
     """Customer deployment record."""
 
-    id: int
+    id: str = Field(default="", description="MongoDB document ID")
     customer_id: str
     environment: str
     stack_name: str
@@ -864,9 +864,6 @@ class CustomerDeployment(BaseModel):
     error_message: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 

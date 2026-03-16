@@ -12,7 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 class DestroyManager(AddonInstallerService):
-    """Handles pre-destroy cleanup before Pulumi destroy."""
+    """Handles pre-destroy cleanup before Pulumi destroy.
+
+    Inherits from AddonInstallerService to reuse SSM client, config,
+    deployment outputs, and state management.
+    """
 
     def _build_pre_destroy_script(self) -> str:
         cluster_name = self.outputs.get("eks_cluster_name")
@@ -35,6 +39,9 @@ aws eks update-kubeconfig --name "$CLUSTER_NAME" --region "$REGION"
 
 echo "==> Starting pre-destroy cleanup for $CUSTOMER_ID..."
 
+# =============================================================================
+# PHASE 1: Delete ArgoCD Applications (stops all workloads)
+# =============================================================================
 echo "==> Phase 1: Deleting ArgoCD applications..."
 if kubectl get namespace argocd &>/dev/null; then
     kubectl delete applications --all -n argocd --timeout=300s || true
@@ -47,6 +54,9 @@ if kubectl get namespace argocd &>/dev/null; then
 fi
 echo "==> ArgoCD applications deleted!"
 
+# =============================================================================
+# PHASE 2: Delete LoadBalancer services (NLBs from NGINX ingress)
+# =============================================================================
 echo "==> Phase 2: Deleting LoadBalancer services..."
 kubectl delete svc -n nginx-inc --all --timeout=120s 2>/dev/null || true
 
@@ -62,6 +72,9 @@ fi
 echo "==> Waiting for NLBs to deregister (3 min)..."
 sleep 180
 
+# =============================================================================
+# PHASE 3: Delete Karpenter nodes
+# =============================================================================
 echo "==> Phase 3: Deleting Karpenter managed nodes..."
 kubectl delete nodepools --all --timeout=120s 2>/dev/null || true
 kubectl delete ec2nodeclasses --all --timeout=120s 2>/dev/null || true
@@ -84,6 +97,9 @@ if [ $ELAPSED -ge $TIMEOUT ]; then
     echo "==> WARNING: Timeout waiting for Karpenter nodes. Proceeding anyway."
 fi
 
+# =============================================================================
+# PHASE 4: Delete CRD instances (before removing operators)
+# =============================================================================
 echo "==> Phase 4: Deleting CRD instances..."
 kubectl delete clusters.apps.kubeblocks.io --all -A --timeout=120s 2>/dev/null || true
 kubectl delete milvus --all -A --timeout=120s 2>/dev/null || true
@@ -94,6 +110,9 @@ kubectl delete externalsecrets --all -A --timeout=60s 2>/dev/null || true
 echo "==> Waiting for CRD instances to terminate..."
 sleep 60
 
+# =============================================================================
+# PHASE 5: Uninstall Helm releases (reverse order)
+# =============================================================================
 echo "==> Phase 5: Uninstalling Helm releases..."
 helm uninstall argocd -n argocd 2>/dev/null || true
 helm uninstall external-secrets -n external-secrets 2>/dev/null || true
@@ -105,6 +124,9 @@ helm uninstall kb-addon-falkordb -n kubeblocks 2>/dev/null || true
 helm uninstall kubeblocks -n kubeblocks 2>/dev/null || true
 helm uninstall karpenter -n karpenter 2>/dev/null || true
 
+# =============================================================================
+# PHASE 6: Clean up namespaces
+# =============================================================================
 echo "==> Phase 6: Cleaning up namespaces..."
 for ns in argocd external-secrets cert-manager monitoring clickhouse milvus-operator kubeblocks karpenter nginx-inc falkordb-shared falkordb-$CUSTOMER_ID milvus-$CUSTOMER_ID cortex-app cortex-ingestion nextjs vector falkordb-dashboard; do
     kubectl delete namespace "$ns" --timeout=60s 2>/dev/null || true
@@ -115,6 +137,9 @@ for ns in $(kubectl get namespaces -o jsonpath='{{range .items[?(@.status.phase=
     kubectl get namespace $ns -o json | jq '.spec.finalizers = []' | kubectl replace --raw "/api/v1/namespaces/$ns/finalize" -f - 2>/dev/null || true
 done
 
+# =============================================================================
+# PHASE 7: Final verification
+# =============================================================================
 echo "==> Phase 7: Verifying cleanup..."
 echo "Remaining pods:"
 kubectl get pods -A 2>/dev/null || true

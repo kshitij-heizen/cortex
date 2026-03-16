@@ -52,10 +52,11 @@ class AddonInstallerService:
 
     @property
     def outputs(self) -> dict:
-        if not self.deployment.outputs:
+        raw = self.deployment.get("outputs") if isinstance(self.deployment, dict) else None
+        if not raw:
             return {}
         try:
-            return json.loads(self.deployment.outputs)
+            return json.loads(raw)
         except (json.JSONDecodeError, TypeError):
             return {}
 
