@@ -103,6 +103,7 @@ class AccessNode(pulumi.ComponentResource):
                     "Action": [
                         "secretsmanager:GetSecretValue",
                         "secretsmanager:PutSecretValue",
+                        "secretsmanager:CreateSecret",
                     ],
                     "Resource": f"arn:aws:secretsmanager:{region}:{caller.account_id}:secret:/byoc/*",
                 }],

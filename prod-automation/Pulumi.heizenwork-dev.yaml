@@ -3,7 +3,7 @@ config:
   byoc-platform:environment: dev
   byoc-platform:customerRoleArn: arn:aws:iam::225919348997:role/heizen-deployer
   byoc-platform:externalId:
-    secure: v1:32Il7/AFj8puSkfY:qTJ0S02a0CZEwWGg0goyS+uhhctTPP7jIfgI6NKOEAwzXhj062wCkuPVYLma/Xseig==
+    secure: v1:NhoJjsIpskYHfeGh:NzKyhNbAtOGRr44JEENffALCdXYxXtCAOOE55Vrt0jltRk2j0WZSBRKX0bpawqnp2w==
   byoc-platform:awsRegion: us-east-1
   byoc-platform:availabilityZones: us-east-1a,us-east-1b,us-east-1c
   byoc-platform:vpcCidr: 10.100.0.0/16
@@ -69,22 +69,22 @@ config:
   byoc-platform:mongodbMode: atlas
   byoc-platform:mongodbAtlasClientId: mdb_sa_id_69abdceee20ba70d731872b8
   byoc-platform:mongodbAtlasClientSecret:
-    secure: v1:IKObwIkopTBWj45/:lB3MCa2DHaYXUQKa/CR12mArbYsaV3nKjvlDz/O96zh1Mmv5EkKxjqwJcJbeWax5cOCW1R5hsypCDqWTbYGFjPXd
+    secure: v1:JW7jJ3PCSSH0Gd/O:Sf/vYM0DwTZOk4kJ/VmShiKrvcSnkpy1Vrpil/q9rFfsqsAuV92UJiyPPmD2Tl/I687GVJjW+6J7c7ZxRpMcEQCt
   byoc-platform:mongodbAtlasOrgId: 69089b289d27891c52500e7b
   byoc-platform:mongodbAtlasProjectName: heizen-cortex
   byoc-platform:mongodbClusterTier: M10
   byoc-platform:mongodbClusterRegion: US_EAST_1
   byoc-platform:mongodbDbUsername: cortex
   byoc-platform:mongodbDbPassword:
-    secure: v1:YmWAdsAAtsKdAsu4:C80BKOihs/PDtENeoLGvb74zAS7qNrSygGw=
+    secure: v1:okZfuM6Ne5H+5Co4:Xbs/GxxmGGKsHQ8meY+F8KiTJAo97O8w6uA=
   byoc-platform:mongodbDiskSizeGb: "10"
   byoc-platform:mongodbAtlasCidrBlock: 192.168.248.0/21
   byoc-platform:esoFalkordbPassword:
-    secure: v1:uk+iu8fn/aVyquEz:2WenM5Zi4RINGpbIqk4ACjKbS2RwhM5m60k=
+    secure: v1:/iNHcBq2iPuEbpBj:iQ/taUAKSLaIb13W/6z0qe8I5tYtVMqmqGI=
   byoc-platform:esoMilvusToken:
-    secure: v1:BGv1C5UoCWpsjeaB:W91OhBYCyH6am+vSDe52fmUbbDFHi0k+sW5m
+    secure: v1:P6dfVA4KdRwZhyaL:4ORN5CAyukanVyS8M6RBmR5lEpZD6O56bZlv
   byoc-platform:esoGoogleApiKey: ""
   byoc-platform:esoGeminiApiKey: ""
   byoc-platform:esoGithubArgocdCdToken:
-    secure: v1:v0AgSLPv9wFQoVgp:3/r5p0+xr5zgR6ACW3Dko98PmfqYxw/IdQsaXcm9QtaPOg06tVXYAAOxR99gxukNTnBYtLKafcU=
+    secure: v1:bFHnSng8TYbnRivO:BZzLPrnE6WgG2diVcyBZnByv3Ok4dGyVHSP1xMICA9c/mspbOuEXdEUqUJGwPrLYDZ1/jKK/cYg=
 encryptionsalt: v1:974oeqP6ceI=:v1:OTgKL+S1sNPmfKvF:nI1NUr5JAcLLAiqOmfserUTHyByZXg==

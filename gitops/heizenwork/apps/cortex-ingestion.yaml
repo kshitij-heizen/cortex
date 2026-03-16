@@ -1,10 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: nextjs
+  name: cortex-ingestion
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-wave: "4"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -15,14 +15,14 @@ spec:
       ref: values
     - repoURL: https://github.com/opengig/cortex.git
       targetRevision: kshitij/migrrationtocli
-      path: prod/nextjs/helm/nextjs-chart
+      path: prod/cortex-ingestion/helm/cortex-ingestion-chart
       helm:
-        releaseName: nextjs
+        releaseName: cortex-ingestion
         valueFiles:
-          - $values/customers/heizenwork/nextjs-values.yaml
+          - $values/gitops/heizenwork/values/cortex-ingestion-values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: nextjs
+    namespace: cortex-ingestion
   syncPolicy:
     automated:
       prune: true

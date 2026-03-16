@@ -1,10 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: falkordb
+  name: monitoring-ingresses
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "3"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -15,26 +15,25 @@ spec:
       ref: values
     - repoURL: https://github.com/opengig/cortex.git
       targetRevision: kshitij/migrrationtocli
-      path: prod/falkordb/helm/falkor-chart
+      path: prod/monitoring/helm/monitoring-ingresses
       helm:
-        releaseName: falkordb
+        releaseName: monitoring-ingresses
         valueFiles:
-          - $values/customers/heizenwork/falkordb-values.yaml
+          - $values/gitops/heizenwork/values/monitoring-values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: falkordb-heizenwork
+    namespace: monitoring
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
       - ServerSideApply=true
       - RespectIgnoreDifferences=true
+      - CreateNamespace=true
   ignoreDifferences:
-    - group: apps.kubeblocks.io
-      kind: Cluster
-      jqPathExpressions:
-        - .spec.componentSpecs[].serviceVersion
-        - .spec.componentSpecs[].disableExporter
-        - .spec.componentSpecs[].componentDef
+    - group: ""
+      kind: Service
+      jsonPointers:
+        - /metadata/annotations
+        - /metadata/finalizers

@@ -1,10 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: cortex-app
+  name: nextjs
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/sync-wave: "5"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -15,14 +15,14 @@ spec:
       ref: values
     - repoURL: https://github.com/opengig/cortex.git
       targetRevision: kshitij/migrrationtocli
-      path: prod/cortex-app/helm/cortex-app-chart
+      path: prod/nextjs/helm/nextjs-chart
       helm:
-        releaseName: cortex-app
+        releaseName: nextjs
         valueFiles:
-          - $values/customers/heizenwork/cortex-app-values.yaml
+          - $values/gitops/heizenwork/values/nextjs-values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: cortex-app
+    namespace: nextjs
   syncPolicy:
     automated:
       prune: true

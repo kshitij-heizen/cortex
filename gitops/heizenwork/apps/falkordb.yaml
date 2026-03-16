@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: milvus
+  name: falkordb
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
@@ -15,14 +15,14 @@ spec:
       ref: values
     - repoURL: https://github.com/opengig/cortex.git
       targetRevision: kshitij/migrrationtocli
-      path: prod/milvus/helm/milvus-chart
+      path: prod/falkordb/helm/falkor-chart
       helm:
-        releaseName: milvus
+        releaseName: falkordb
         valueFiles:
-          - $values/customers/heizenwork/milvus-values.yaml
+          - $values/gitops/heizenwork/values/falkordb-values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: milvus-heizenwork
+    namespace: falkordb-heizenwork
   syncPolicy:
     automated:
       prune: true
@@ -32,8 +32,9 @@ spec:
       - ServerSideApply=true
       - RespectIgnoreDifferences=true
   ignoreDifferences:
-    - group: milvus.io
-      kind: Milvus
+    - group: apps.kubeblocks.io
+      kind: Cluster
       jqPathExpressions:
-        - .spec.components
-        - .spec.dependencies
+        - .spec
+        - .metadata.annotations
+        - .metadata.finalizers
