@@ -94,6 +94,8 @@ vector:
 
   persistence:
     enabled: false
+    hostPath:
+      enabled: false
 
   tolerations:
     - operator: Exists

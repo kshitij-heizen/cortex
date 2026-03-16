@@ -17,6 +17,7 @@ from api.models import (
     DestroyRequest,
 )
 from api.pulumi_engine import PulumiEngine
+from api.services.addon_installer import AddonInstallerService
 from api.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -264,11 +265,7 @@ async def run_destroy(
     environment: str,
     database: Database,
 ) -> None:
-    """Background task to destroy customer infrastructure via Automation API.
-
-    Runs pre-destroy cleanup via SSM (delete ArgoCD apps, Karpenter nodepools,
-    LoadBalancer services) before calling Pulumi destroy.
-    """
+    """Background task to destroy customer infrastructure via Automation API."""
     stack_name = f"{customer_id}-{environment}"
 
     try:
@@ -278,27 +275,6 @@ async def run_destroy(
             stack_name=stack_name,
             status=DeploymentStatus.DESTROYING,
         )
-
-        try:
-            from api.services.destroy_manager import DestroyManager
-
-            destroy_mgr = DestroyManager(customer_id, environment)
-            logger.info("Running pre-destroy cleanup for %s", stack_name)
-            cleanup_result = await destroy_mgr.run_pre_destroy()
-
-            if cleanup_result.status.value == "failed":
-                logger.warning(
-                    "Pre-destroy cleanup failed for %s: %s. Proceeding with destroy anyway.",
-                    stack_name,
-                    cleanup_result.error,
-                )
-            else:
-                logger.info("Pre-destroy cleanup succeeded for %s", stack_name)
-        except Exception:
-            logger.exception(
-                "Pre-destroy cleanup error for %s. Proceeding with destroy anyway.",
-                stack_name,
-            )
 
         result = await asyncio.to_thread(engine.destroy, stack_name)
 
