@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: falkordb
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/opengig/cortex.git
+      targetRevision: kshitij/migrrationtocli
+      ref: values
+    - repoURL: https://github.com/opengig/cortex.git
+      targetRevision: kshitij/migrrationtocli
+      path: prod/falkordb/helm/falkor-chart
+      helm:
+        releaseName: falkordb
+        valueFiles:
+          - $values/gitops/heizenwork/values/falkordb-values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: falkordb-heizenwork
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+    - group: apps.kubeblocks.io
+      kind: Cluster
+      jqPathExpressions:
+        - .spec
+        - .metadata.annotations
+        - .metadata.finalizers

@@ -1,0 +1,14 @@
+{{- if .Values.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cortex-app-pdb
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: cortex-app
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cortex-app
+{{- end }}

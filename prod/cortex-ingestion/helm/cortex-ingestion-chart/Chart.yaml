@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cortex-ingestion
+description: Cortex Ingestion - document processing and ingestion worker
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

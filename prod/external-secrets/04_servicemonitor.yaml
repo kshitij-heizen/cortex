@@ -1,0 +1,60 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: external-secrets
+  namespace: external-secrets
+  labels:
+    app.kubernetes.io/name: external-secrets
+    app.kubernetes.io/component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: external-secrets
+  namespaceSelector:
+    matchNames:
+      - external-secrets
+  endpoints:
+    - port: prometheus
+      interval: 30s
+      path: /metrics
+      scheme: http
+---
+# PrometheusRule for alerting on secret sync failures
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: external-secrets-alerts
+  namespace: external-secrets
+  labels:
+    app.kubernetes.io/name: external-secrets
+    app.kubernetes.io/component: alerting
+spec:
+  groups:
+    - name: external-secrets
+      rules:
+        - alert: ExternalSecretSyncFailed
+          expr: externalsecret_status_condition{condition="Ready", status="False"} == 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ExternalSecret sync failed"
+            description: "ExternalSecret {{ $labels.name }} in namespace {{ $labels.namespace }} failed to sync for more than 5 minutes."
+        
+        - alert: ExternalSecretNotReady
+          expr: externalsecret_status_condition{condition="Ready", status="True"} == 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "ExternalSecret not ready"
+            description: "ExternalSecret {{ $labels.name }} in namespace {{ $labels.namespace }} is not ready for more than 10 minutes."
+        
+        - alert: ClusterSecretStoreNotReady
+          expr: clustersecretstore_status_condition{condition="Ready", status="True"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "ClusterSecretStore not ready"
+            description: "ClusterSecretStore {{ $labels.name }} is not ready for more than 5 minutes. This will affect all ExternalSecrets using this store."

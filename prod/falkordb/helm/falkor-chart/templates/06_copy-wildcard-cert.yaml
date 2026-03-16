@@ -1,0 +1,118 @@
+{{- if .Values.ingress.enabled }}
+{{- if .Values.ingress.useWildcardCert }}
+{{- $fullName := printf "%s-%s-%s" .Values.clusterName .Values.organization .Values.tenantId }}
+---
+# Job to copy the wildcard certificate from falkordb-shared to tenant namespace
+# This runs once during Helm install and copies the shared wildcard TLS cert
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $fullName }}-copy-cert
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 60
+  template:
+    spec:
+      serviceAccountName: {{ $fullName }}-cert-copier
+      restartPolicy: Never
+      containers:
+      - name: copy-cert
+        image: bitnami/kubectl:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # Get the wildcard cert from falkordb-shared namespace
+          kubectl get secret {{ .Values.ingress.wildcardCertSecret }} \
+            -n {{ .Values.ingress.wildcardCertNamespace }} \
+            -o yaml | \
+          sed 's/namespace: {{ .Values.ingress.wildcardCertNamespace }}/namespace: {{ .Values.namespace }}/' | \
+          sed 's/name: {{ .Values.ingress.wildcardCertSecret }}/name: {{ $fullName }}-tls-cert/' | \
+          kubectl apply -f -
+          echo "Certificate copied successfully!"
+---
+# ServiceAccount for cert copier job
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $fullName }}-cert-copier
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": hook-succeeded
+---
+# Role to read secrets from falkordb-shared
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $fullName }}-cert-reader
+  namespace: {{ .Values.ingress.wildcardCertNamespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": hook-succeeded
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["{{ .Values.ingress.wildcardCertSecret }}"]
+  verbs: ["get"]
+---
+# RoleBinding to allow reading from falkordb-shared
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $fullName }}-cert-reader
+  namespace: {{ .Values.ingress.wildcardCertNamespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $fullName }}-cert-reader
+subjects:
+- kind: ServiceAccount
+  name: {{ $fullName }}-cert-copier
+  namespace: {{ .Values.namespace }}
+---
+# Role to create secrets in tenant namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $fullName }}-cert-writer
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": hook-succeeded
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "create", "update", "patch"]
+---
+# RoleBinding to allow writing to tenant namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $fullName }}-cert-writer
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $fullName }}-cert-writer
+subjects:
+- kind: ServiceAccount
+  name: {{ $fullName }}-cert-copier
+  namespace: {{ .Values.namespace }}
+{{- end }}
+{{- end }}

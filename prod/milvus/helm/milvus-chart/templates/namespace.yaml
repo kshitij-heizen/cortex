@@ -1,0 +1,11 @@
+{{- if .Values.namespace.create }}
+{{- $ns := lookup "v1" "Namespace" "" (include "milvus-tenant.namespace" .) }}
+{{- if not $ns }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "milvus-tenant.namespace" . }}
+  labels:
+    {{- include "milvus-tenant.labels" . | nindent 4 }}
+{{- end }}
+{{- end }}

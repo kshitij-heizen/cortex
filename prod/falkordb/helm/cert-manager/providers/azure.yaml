@@ -1,0 +1,43 @@
+# Azure DNS DNS-01 ClusterIssuer
+#
+# Prerequisites:
+#   1. Create Azure Service Principal:
+#      az ad sp create-for-rbac --name cert-manager-dns01
+#      
+#      # Note the output: appId, password, tenant
+#
+#   2. Assign DNS Zone Contributor role:
+#      az role assignment create \
+#        --assignee <APP_ID> \
+#        --role "DNS Zone Contributor" \
+#        --scope /subscriptions/<SUBSCRIPTION_ID>/resourceGroups/<RESOURCE_GROUP>/providers/Microsoft.Network/dnszones/<ZONE_NAME>
+#
+#   3. Create the secret:
+#      kubectl create secret generic azure-dns-credentials \
+#        --namespace cert-manager \
+#        --from-literal=client-secret=<PASSWORD>
+#
+# Usage:
+#   kubectl apply -f azure.yaml
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-dns01
+spec:
+  acme:
+    email: cloud@usecortex.ai  # UPDATE: Your email
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-dns01-key
+    solvers:
+    - dns01:
+        azureDNS:
+          clientID: <APP_ID>              # UPDATE: Service principal appId
+          clientSecretSecretRef:
+            name: azure-dns-credentials
+            key: client-secret
+          subscriptionID: <SUBSCRIPTION_ID>  # UPDATE: Azure subscription ID
+          tenantID: <TENANT_ID>              # UPDATE: Azure tenant ID
+          resourceGroupName: <RESOURCE_GROUP> # UPDATE: Resource group with DNS zone
+          hostedZoneName: <ZONE_NAME>        # UPDATE: DNS zone name (e.g., usecortex.ai)

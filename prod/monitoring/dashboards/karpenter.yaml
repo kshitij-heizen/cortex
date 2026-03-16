@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: karpenter-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: "Kubernetes"
+data:
+  karpenter.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}] } } },
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "id": 1,
+          "title": "Karpenter Managed Nodes",
+          "type": "stat",
+          "targets": [{ "expr": "count(karpenter_nodes_allocatable{resource_type=\"cpu\"}) or vector(0)", "legendFormat": "" }]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}] } } },
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+          "id": 2,
+          "title": "Pending Pods",
+          "type": "stat",
+          "targets": [{ "expr": "sum(kube_pod_status_phase{phase=\"Pending\"}) or vector(0)", "legendFormat": "" }]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}] } } },
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+          "id": 3,
+          "title": "Total Allocatable CPU",
+          "type": "stat",
+          "targets": [{ "expr": "sum(karpenter_nodes_allocatable{resource_type=\"cpu\"}) or vector(0)", "legendFormat": "" }]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "fieldConfig": { "defaults": { "unit": "bytes", "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}] } } },
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+          "id": 4,
+          "title": "Total Allocatable Memory",
+          "type": "stat",
+          "targets": [{ "expr": "sum(karpenter_nodes_allocatable{resource_type=\"memory\"}) or vector(0)", "legendFormat": "" }]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "id": 5,
+          "title": "Nodes Created / Terminated",
+          "type": "timeseries",
+          "targets": [
+            { "expr": "sum(increase(karpenter_nodes_created_total[5m]))", "legendFormat": "created" },
+            { "expr": "sum(increase(karpenter_nodes_terminated_total[5m]))", "legendFormat": "terminated" }
+          ]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "id": 6,
+          "title": "Provisioning / Deprovisioning Duration",
+          "type": "timeseries",
+          "fieldConfig": { "defaults": { "unit": "s" } },
+          "targets": [
+            { "expr": "histogram_quantile(0.99, sum by (le) (rate(karpenter_provisioner_scheduling_duration_seconds_bucket[5m])))", "legendFormat": "scheduling p99" },
+            { "expr": "histogram_quantile(0.99, sum by (le) (rate(karpenter_nodes_launch_duration_seconds_bucket[5m])))", "legendFormat": "launch p99" }
+          ]
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+          "id": 7,
+          "title": "Allocatable vs Used CPU per Node",
+          "type": "timeseries",
+          "targets": [
+            { "expr": "karpenter_nodes_allocatable{resource_type=\"cpu\"}", "legendFormat": "{{node}} allocatable" },
+            { "expr": "sum by (node) (rate(container_cpu_usage_seconds_total{container!=\"\", container!=\"POD\"}[5m]))", "legendFormat": "{{node}} used" }
+          ]
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["karpenter", "kubernetes", "autoscaling"],
+      "templating": {
+        "list": [
+          { "current": {}, "hide": 0, "includeAll": false, "label": "Datasource", "name": "datasource", "options": [], "query": "prometheus", "type": "datasource" }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "Karpenter",
+      "uid": "karpenter",
+      "version": 1
+    }

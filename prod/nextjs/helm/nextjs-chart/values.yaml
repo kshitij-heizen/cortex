@@ -1,0 +1,45 @@
+namespace: nextjs
+
+image:
+  repository: 225919348997.dkr.ecr.us-east-1.amazonaws.com/deployments/on-prem
+  tag: dashboard-v1
+  pullPolicy: IfNotPresent
+
+replicas: 2
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+nodeSelector:
+  role: general
+
+serviceAccount:
+  name: nextjs
+
+
+ingress:
+  enabled: true
+  className: nginx-inc
+  hostname: nextjs.usecortex.opengig.work
+  tls:
+    enabled: true
+    secretName: nextjs-tls
+    issuerName: letsencrypt-prod
+  annotations:
+    nginx.org/proxy-read-timeout: "60s"
+    nginx.org/proxy-send-timeout: "60s"
+    nginx.org/proxy-connect-timeout: "10s"
+
+hpa:
+  enabled: false
+
+pdb:
+  enabled: false
+
+monitoring:
+  enabled: false

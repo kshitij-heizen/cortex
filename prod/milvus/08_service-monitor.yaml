@@ -1,0 +1,33 @@
+# Prometheus ServiceMonitor for Milvus
+# Scrapes metrics from Milvus proxy on port 9091
+# org_id label allows filtering metrics by organization in Grafana
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: milvus-monitor
+  namespace: milvus-cortexai
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: cortexai
+      app.kubernetes.io/name: milvus
+      milvus.io/service: "true"
+  namespaceSelector:
+    matchNames:
+      - milvus-cortexai
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      relabelings:
+        # Add org_id label for multi-tenant filtering
+        - action: replace
+          replacement: cortexai
+          targetLabel: org_id
+        # Also add organization label for consistency with other monitors
+        - action: replace
+          replacement: cortexai
+          targetLabel: organization

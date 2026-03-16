@@ -1,0 +1,89 @@
+# FalkorDB Tenant Values Template
+# IMPORTANT: Always use whole numbers for memory (e.g., "4Gi", "512Mi")
+# Do NOT use fractional Gi values like "0.6Gi" - they cause maxmemory miscalculation
+
+organization: cortexai
+
+tenantId: tenant-5
+
+namespace: falkordb-cortexai
+
+clusterName: falkordb
+
+auth:
+  useSharedSecret: true
+  sharedSecretName: "falkordb-shared-password"
+  sharedSecretNamespace: "falkordb-shared"
+  sharedSecretKey: "password"
+
+ingress:
+  enabled: true
+  domain: falkordb.usecortex.ai
+  className: nginx-inc
+  useWildcardCert: true
+  wildcardCertSecret: falkordb-wildcard-tls
+  wildcardCertNamespace: falkordb-shared
+  tls:
+    issuerName: letsencrypt-prod
+    issuerKind: ClusterIssuer
+
+stunnel:
+  image: dweomer/stunnel:latest
+  replicas: 2
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
+
+dataNode:
+  replicas: 2
+
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "4Gi"      # Use whole Gi or Mi values only (maxmemory = 80% of this)
+    limits:
+      cpu: "1500m"
+      memory: "12Gi"
+
+  nodeSelector:
+    role: memory-db-large-scalable
+
+  tolerations:
+    - key: "workload"
+      operator: "Equal"
+      value: "database-large-scalable"
+      effect: "NoSchedule"
+
+  storage:
+    storageClassName: falkordb-prod-gp3
+    size: 50Gi
+
+sentinelNode:
+  replicas: 3
+
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+  nodeSelector:
+    role: general
+
+  storage:
+    storageClassName: falkordb-general-gp3
+    size: 10Gi
+
+monitoring:
+  enabled: true
+  redisExporter:
+    image: oliver006/redis_exporter:v1.62.0
+  statsExporter:
+    image: python:3.11-slim
+    scrapeInterval: 60

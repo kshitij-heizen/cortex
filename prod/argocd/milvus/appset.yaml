@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: multi-org-milvus
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - git:
+        repoURL: git@github.com:usecortex/argocd-infra.git
+        revision: main
+        files:
+          - path: "infra/orgs/*/milvus.values.yaml"
+  template:
+    metadata:
+      name: 'milvus-{{ index .path.segments 2 }}'
+    spec:
+      project: tenant-milvus
+      source:
+        repoURL: git@github.com:usecortex/argocd-infra.git
+        targetRevision: main
+        path: infra/charts/milvus
+        helm:
+          valueFiles:
+            - '/{{ .path.path }}/{{ .path.filename }}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'milvus-{{ index .path.segments 2 }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

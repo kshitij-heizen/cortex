@@ -1,0 +1,86 @@
+{{- if .Values.monitoring.enabled }}
+{{- $fullName := printf "%s-%s-%s" .Values.clusterName .Values.organization .Values.tenantId }}
+{{- $serviceName := printf "%s-falkordb-falkordb" $fullName }}
+{{- if .Values.auth.useSharedSecret }}
+{{- $secretName := .Values.auth.sharedSecretName }}
+{{- $secretNamespace := .Values.auth.sharedSecretNamespace }}
+{{- else }}
+{{- $secretName := printf "%s-falkordb-account-default" $fullName }}
+{{- $secretNamespace := .Values.namespace }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-exporter
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ $fullName }}-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $fullName }}-exporter
+  template:
+    metadata:
+      labels:
+        app: {{ $fullName }}-exporter
+    spec:
+      containers:
+      - name: redis-exporter
+        image: {{ .Values.monitoring.redisExporter.image }}
+        args:
+        - --redis.addr={{ $serviceName }}.{{ .Values.namespace }}.svc.cluster.local:6379
+        - --redis.password=$(REDIS_PASSWORD)
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              {{- if .Values.auth.useSharedSecret }}
+              name: {{ .Values.auth.sharedSecretName }}
+              {{- else }}
+              name: {{ $fullName }}-falkordb-account-default
+              {{- end }}
+              key: password
+        ports:
+        - name: http-metrics
+          containerPort: 9121
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http-metrics
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http-metrics
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      nodeSelector:
+        role: general
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-exporter
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ $fullName }}-exporter
+spec:
+  type: ClusterIP
+  ports:
+  - name: http-metrics
+    port: 9121
+    targetPort: http-metrics
+    protocol: TCP
+  selector:
+    app: {{ $fullName }}-exporter
+{{- end }}

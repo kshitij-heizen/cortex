@@ -1,0 +1,192 @@
+org_id: cortexai
+
+namespace:
+  create: true
+
+storageClass:
+  create: true
+  name: milvus-storage
+  provisioner: ebs.csi.aws.com
+  parameters:
+    type: gp3
+    iops: 3000
+    throughput: 125
+    fsType: ext4
+    encrypted: true
+  allowVolumeExpansion: true
+  volumeBindingMode: WaitForFirstConsumer
+  reclaimPolicy: Retain
+
+nodeSelector:
+  role: memory-db-large-scalable
+
+tolerations:
+  - key: workload
+    operator: Equal
+    value: database-large-scalable
+    effect: NoSchedule
+
+milvus:
+  mode: cluster
+  config:
+    logLevel: info
+    authEnabled: true
+    maxVectorFieldNum: 10
+  components:
+    proxy:
+      replicas: 2
+      serviceType: ClusterIP
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "1Gi"
+        limits:
+          cpu: "2"
+          memory: "4Gi"
+    queryNode:
+      replicas: 2
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "2Gi"
+        limits:
+          cpu: "4"
+          memory: "10Gi"
+    dataNode:
+      replicas: 2
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "1Gi"
+        limits:
+          cpu: "2"
+          memory: "4Gi"
+    indexNode:
+      replicas: 1
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "1Gi"
+        limits:
+          cpu: "4"
+          memory: "8Gi"
+    mixCoord:
+      replicas: 1
+      resources:
+        requests:
+          cpu: "500m"
+          memory: "512Mi"
+        limits:
+          cpu: "2"
+          memory: "2Gi"
+  dependencies:
+    etcd:
+      deletionPolicy: Delete
+      pvcDeletion: false
+      replicaCount: 3
+      storageSize: 10Gi
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "512Mi"
+        limits:
+          cpu: "1"
+          memory: "2Gi"
+    minio:
+      deletionPolicy: Delete
+      pvcDeletion: false
+      mode: distributed
+      replicas: 4
+      storageSize: 100Gi
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "512Mi"
+        limits:
+          cpu: "2"
+          memory: "4Gi"
+    msgStream:
+      type: pulsar
+    pulsar:
+      deletionPolicy: Delete
+      pvcDeletion: false
+      proxy:
+        replicas: 1
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+      bookkeeper:
+        replicas: 2
+        journalSize: 20Gi
+        ledgersSize: 50Gi
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "512Mi"
+      zookeeper:
+        replicas: 1
+        storageSize: 10Gi
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+      broker:
+        replicas: 1
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "512Mi"
+
+ingress:
+  className: nginx-inc
+  domain: milvusdb.usecortex.opengig.work
+  tlsSecretName: ""
+  grpc:
+    enabled: false
+    proxyConnectTimeout: "60s"
+    proxyReadTimeout: "300s"
+    proxySendTimeout: "300s"
+    annotations: {}
+  webui:
+    enabled: false
+    proxyConnectTimeout: "60s"
+    proxyReadTimeout: "300s"
+    proxySendTimeout: "300s"
+    clientMaxBodySize: "100m"
+    annotations: {}
+  attu:
+    enabled: true
+    proxyConnectTimeout: "60s"
+    proxyReadTimeout: "300s"
+    proxySendTimeout: "300s"
+    clientMaxBodySize: "100m"
+    annotations: {}
+
+attu:
+  enabled: true
+  image:
+    repository: zilliz/attu
+    tag: v2.4
+  replicas: 1
+  logLevel: info
+  nodeSelector:
+    role: general
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+certificate:
+  create: false
+
+clusterIssuer:
+  create: false
+
+monitoring:
+  enabled: true
+  releaseLabel: monitoring
+  interval: 30s

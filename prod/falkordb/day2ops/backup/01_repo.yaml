@@ -1,0 +1,14 @@
+apiVersion: dataprotection.kubeblocks.io/v1alpha1
+kind: BackupRepo
+metadata:
+  name: falkordb-prod-repo
+  namespace: falkordb
+spec:
+  storageProviderRef: s3
+  config:
+    bucket: "your-unique-backup-bucket-name" # Ensure this bucket exists in AWS
+    endpoint: "s3.amazonaws.com"
+    region: "us-east-1"
+  credential:
+    name: s3-backup-credentials
+    namespace: falkordb

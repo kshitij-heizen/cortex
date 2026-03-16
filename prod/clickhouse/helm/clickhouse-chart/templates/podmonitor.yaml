@@ -1,0 +1,19 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: clickhouse-server-metrics
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      clickhouse.altinity.com/chi: {{ .Values.clusterName }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  podMetricsEndpoints:
+    - port: metrics
+      interval: 30s
+      path: /metrics
+{{- end }}

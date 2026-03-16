@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: milvus-grpc-ingress
+  namespace: milvus-cortexai
+  annotations:
+    # Using pre-provisioned wildcard cert (no cert-manager annotation needed)
+    # IMPORTANT: gRPC requires HTTP/2
+    nginx.org/http2: "true"
+    nginx.org/grpc-services: "cortexai-milvus"
+    nginx.org/proxy-connect-timeout: "60s"
+    nginx.org/proxy-read-timeout: "600s"
+    nginx.org/proxy-send-timeout: "600s"
+spec:
+  ingressClassName: nginx-inc
+  tls:
+    - hosts:
+        - cortexai.milvusdb.usecortex.ai
+      secretName: milvus-wildcard-tls
+  rules:
+    - host: cortexai.milvusdb.usecortex.ai
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cortexai-milvus
+                port:
+                  number: 19530

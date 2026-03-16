@@ -1,0 +1,15 @@
+server:
+  ingress:
+    enabled: true
+    ingressClassName: nginx  # Community Controller
+    hostname: argocd.usecortex.ai
+    annotations:
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      
+      cert-manager.io/cluster-issuer: "self-signed-issuer"
+
+    tls:
+      - secretName: argocd-server-tls
+        hosts:
+          - argocd.usecortex.ai

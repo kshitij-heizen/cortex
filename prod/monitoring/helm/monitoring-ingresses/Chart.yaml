@@ -1,0 +1,6 @@
+apiVersion: v2
+name: monitoring-ingresses
+description: Ingress resources for Grafana and Prometheus
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

@@ -1,0 +1,79 @@
+# FalkorDB Prometheus Alert Rules
+# 
+# Alerts for memory pressure to prevent OOM kills
+# Apply: kubectl apply -f falkordb-alerts.yaml
+#
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: falkordb-alerts
+  namespace: monitoring
+  labels:
+    release: monitoring  
+spec:
+  groups:
+    - name: falkordb.rules
+      rules:
+        # Alert when FalkorDB memory usage > 70% of container request
+        # Gives time to scale up before OOM
+        - alert: FalkorDBMemoryHigh
+          expr: |
+            (
+              container_memory_working_set_bytes{container="falkordb", namespace=~"falkordb-.*"}
+              / on(namespace, pod) 
+              kube_pod_container_resource_requests{resource="memory", container="falkordb", namespace=~"falkordb-.*"}
+            ) > 0.7
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "FalkorDB memory usage high ({{ $labels.namespace }})"
+            description: |
+              FalkorDB pod {{ $labels.pod }} in {{ $labels.namespace }} 
+              is using {{ $value | humanizePercentage }} of requested memory.
+              Consider scaling up via KubeBlocks OpsRequest.
+            runbook: "Increase memory request in values.yaml and push to trigger ArgoCD sync"
+
+        # Critical alert at 85% - immediate action needed
+        - alert: FalkorDBMemoryCritical
+          expr: |
+            (
+              container_memory_working_set_bytes{container="falkordb", namespace=~"falkordb-.*"}
+              / on(namespace, pod) 
+              kube_pod_container_resource_requests{resource="memory", container="falkordb", namespace=~"falkordb-.*"}
+            ) > 0.85
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "FalkorDB memory CRITICAL ({{ $labels.namespace }})"
+            description: |
+              FalkorDB pod {{ $labels.pod }} in {{ $labels.namespace }}
+              is using {{ $value | humanizePercentage }} of requested memory.
+              OOM kill imminent! Scale immediately.
+
+        # Alert when pod was OOM killed (after the fact)
+        - alert: FalkorDBOOMKilled
+          expr: |
+            kube_pod_container_status_last_terminated_reason{reason="OOMKilled", container="falkordb", namespace=~"falkordb-.*"} == 1
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "FalkorDB was OOM killed ({{ $labels.namespace }})"
+            description: |
+              FalkorDB container in {{ $labels.namespace }} was OOM killed.
+              Increase memory request immediately to prevent crash loop.
+
+        # Alert on high Redis memory (FalkorDB internal metric)
+        - alert: FalkorDBRedisMemoryHigh
+          expr: |
+            redis_memory_used_bytes{namespace=~"falkordb-.*"} > 3e9
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "FalkorDB Redis memory > 3GB ({{ $labels.namespace }})"
+            description: |
+              FalkorDB in {{ $labels.namespace }} is using {{ $value | humanize1024 }}B.
+              Monitor closely and consider scaling if trending up.

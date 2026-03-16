@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+data:
+  policy.csv: |
+    p, role:api-manager, applications, *, */*, allow
+    p, role:api-manager, repositories, *, *, allow
+    g, api_user, role:api-manager
+  policy.default: ""
+  policy.matchMode: glob
+  scopes: "[groups]"

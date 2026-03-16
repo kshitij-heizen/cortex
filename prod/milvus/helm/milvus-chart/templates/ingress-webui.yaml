@@ -1,0 +1,34 @@
+{{- if .Values.ingress.webui.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.org_id }}-milvus-webui-ingress
+  namespace: {{ include "milvus-tenant.namespace" . }}
+  labels:
+    {{- include "milvus-tenant.labels" . | nindent 4 }}
+  annotations:
+    nginx.org/proxy-connect-timeout: {{ .Values.ingress.webui.proxyConnectTimeout | quote }}
+    nginx.org/proxy-read-timeout: {{ .Values.ingress.webui.proxyReadTimeout | quote }}
+    nginx.org/proxy-send-timeout: {{ .Values.ingress.webui.proxySendTimeout | quote }}
+    nginx.org/client-max-body-size: {{ .Values.ingress.webui.clientMaxBodySize | quote }}
+    {{- with .Values.ingress.webui.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts:
+        - {{ include "milvus-tenant.webuiHost" . }}
+      secretName: {{ .Values.ingress.tlsSecretName | default (include "milvus-tenant.tlsSecretName" .) }}
+  rules:
+    - host: {{ include "milvus-tenant.webuiHost" . }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "milvus-tenant.serviceName" . }}
+                port:
+                  number: 9091
+{{- end }}

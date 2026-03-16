@@ -1,0 +1,13 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cortex-ingestion-pdb
+  namespace: cortex-ingestion
+  labels:
+    app.kubernetes.io/name: cortex-ingestion
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cortex-ingestion
+
