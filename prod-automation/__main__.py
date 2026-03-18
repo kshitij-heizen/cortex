@@ -639,24 +639,21 @@ nextjs_secret = aws.secretsmanager.Secret(
     opts=pulumi.ResourceOptions(provider=aws_provider),
 )
 
-_nextjs_cfg = config.nextjs_secrets
-_nextjs_secret_data = {}
-if _nextjs_cfg:
-    _nextjs_secret_data = {
-        k: v
-        for k, v in {
-            "NEXTAUTH_SECRET": _nextjs_cfg.nextauth_secret,
-            "GOOGLE_CLIENT_ID": _nextjs_cfg.google_client_id,
-            "GOOGLE_CLIENT_SECRET": _nextjs_cfg.google_client_secret,
-            "AUTH_DYNAMODB_ID": _nextjs_cfg.auth_dynamodb_id,
-            "AUTH_DYNAMODB_SECRET": _nextjs_cfg.auth_dynamodb_secret,
-            "AWS_CONFIG": _nextjs_cfg.aws_config,
-            "NEXT_PUBLIC_MCP_ENCRYPTION_KEY": _nextjs_cfg.next_public_mcp_encryption_key,
-            "RESEND_API_KEY": _nextjs_cfg.resend_api_key,
-            "STRIPE_SECRET_KEY": _nextjs_cfg.stripe_secret_key,
-        }.items()
-        if v
-    }
+_nextjs_secret_data = {
+    k: v
+    for k, v in {
+        "NEXTAUTH_SECRET": pulumi_config.get("nextjsNextauthSecret") or "",
+        "GOOGLE_CLIENT_ID": pulumi_config.get("nextjsGoogleClientId") or "",
+        "GOOGLE_CLIENT_SECRET": pulumi_config.get("nextjsGoogleClientSecret") or "",
+        "AUTH_DYNAMODB_ID": pulumi_config.get("nextjsAuthDynamodbId") or "",
+        "AUTH_DYNAMODB_SECRET": pulumi_config.get("nextjsAuthDynamodbSecret") or "",
+        "AWS_CONFIG": pulumi_config.get("nextjsAwsConfig") or "",
+        "NEXT_PUBLIC_MCP_ENCRYPTION_KEY": pulumi_config.get("nextjsMcpEncryptionKey") or "",
+        "RESEND_API_KEY": pulumi_config.get("nextjsResendApiKey") or "",
+        "STRIPE_SECRET_KEY": pulumi_config.get("nextjsStripeSecretKey") or "",
+    }.items()
+    if v
+}
 
 aws.secretsmanager.SecretVersion(
     f"{config.customer_id}-nextjs-secrets-version",

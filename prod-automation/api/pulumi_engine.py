@@ -259,6 +259,27 @@ class PulumiEngine:
             secret=True,
         )
 
+        njs = config.nextjs_secrets
+        if njs:
+            if njs.nextauth_secret:
+                _s(stack, "nextjsNextauthSecret", njs.nextauth_secret, secret=True)
+            if njs.google_client_id:
+                _s(stack, "nextjsGoogleClientId", njs.google_client_id)
+            if njs.google_client_secret:
+                _s(stack, "nextjsGoogleClientSecret", njs.google_client_secret, secret=True)
+            if njs.auth_dynamodb_id:
+                _s(stack, "nextjsAuthDynamodbId", njs.auth_dynamodb_id, secret=True)
+            if njs.auth_dynamodb_secret:
+                _s(stack, "nextjsAuthDynamodbSecret", njs.auth_dynamodb_secret, secret=True)
+            if njs.aws_config:
+                _s(stack, "nextjsAwsConfig", njs.aws_config, secret=True)
+            if njs.next_public_mcp_encryption_key:
+                _s(stack, "nextjsMcpEncryptionKey", njs.next_public_mcp_encryption_key, secret=True)
+            if njs.resend_api_key:
+                _s(stack, "nextjsResendApiKey", njs.resend_api_key, secret=True)
+            if njs.stripe_secret_key:
+                _s(stack, "nextjsStripeSecretKey", njs.stripe_secret_key, secret=True)
+
     def deploy(
         self,
         stack_name: str,
