@@ -72,7 +72,7 @@ def deploy_task(self, customer_id: str, environment: str) -> dict:
         return {"status": "locked", "stack_name": stack_name}
 
     try:
-        config = config_storage.get(customer_id)
+        config = config_storage.get_by_customer_id(customer_id)
         if not config:
             raise ValueError(f"Customer config not found: {customer_id}")
 

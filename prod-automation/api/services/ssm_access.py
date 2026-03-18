@@ -25,7 +25,7 @@ class SsmAccessService:
     @property
     def config(self):
         if not self._config:
-            self._config = config_storage.get(self.customer_id)
+            self._config = config_storage.get_by_customer_id(self.customer_id)
             if not self._config:
                 raise ValueError(f"Customer {self.customer_id} not found")
         return self._config

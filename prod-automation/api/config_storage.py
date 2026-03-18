@@ -93,5 +93,14 @@ class MongoConfigStorage(ConfigStorageBackend):
             > 0
         )
 
+    def get_by_customer_id(self, customer_id: str) -> Optional[CustomerConfigResolved]:
+        """Get config by customer_id only (for system/worker use, no user filter)."""
+        doc = self._configs.find_one({"customer_id": customer_id})
+        if doc is None:
+            return None
+        doc.pop("_id", None)
+        doc.pop("user_id", None)
+        return CustomerConfigResolved.model_validate(doc)
+
 
 config_storage = MongoConfigStorage()
