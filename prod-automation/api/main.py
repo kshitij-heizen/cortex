@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes.auth import router as auth_router
+from api.routes.aws import router as aws_router
 from api.routes.configs import router as configs_router
 from api.routes.deployments import router as deployments_router
 from api.routes.cluster import router as cluster_router
@@ -33,6 +34,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(aws_router)
 app.include_router(configs_router)
 app.include_router(deployments_router)
 app.include_router(cluster_router)

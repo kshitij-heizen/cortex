@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from api.auth_models import UserResponse
 from api.config_storage import config_storage
 from api.database import db
 from api.dependencies import get_current_user
@@ -20,7 +21,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/api/v1/deployments",
     tags=["deployments"],
-    dependencies=[Depends(get_current_user)],
 )
 
 
@@ -61,12 +61,13 @@ def _doc_to_deployment(d: dict[str, Any]) -> CustomerDeployment:
 async def deploy(
     customer_id: str,
     request: DeployRequest,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> DeploymentResponse:
     """Deploy infrastructure for a customer.
 
     Dispatches a Celery task to run Pulumi deploy, GitOps write, and addon install.
     """
-    config = config_storage.get(customer_id)
+    config = config_storage.get(current_user.id, customer_id)
     if config is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -76,7 +77,7 @@ async def deploy(
 
     stack_name = f"{customer_id}-{request.environment}"
 
-    existing = db.get_deployment(customer_id, request.environment)
+    existing = db.get_deployment_for_user(current_user.id, customer_id, request.environment)
     if existing:
         if existing["status"] == DeploymentStatus.IN_PROGRESS:
             raise HTTPException(
@@ -93,6 +94,7 @@ async def deploy(
     if existing is None:
         try:
             db.create_deployment(
+                user_id=current_user.id,
                 customer_id=customer_id,
                 environment=request.environment,
                 aws_region=config.aws_config.region,
@@ -109,6 +111,14 @@ async def deploy(
     from worker.celery_app import deploy_task
 
     task = deploy_task.delay(customer_id, request.environment)
+
+    db.audit_log(
+        "deployment_started",
+        customer_id,
+        user_id=current_user.id,
+        environment=request.environment,
+        actor=current_user.email,
+    )
 
     return DeploymentResponse(
         customer_id=customer_id,
@@ -127,9 +137,10 @@ async def deploy(
 async def get_deployment_status(
     customer_id: str,
     environment: str = "prod",
+    current_user: UserResponse = Depends(get_current_user),
 ) -> CustomerDeployment:
     """Get the current deployment status."""
-    deployment = db.get_deployment(customer_id, environment)
+    deployment = db.get_deployment_for_user(current_user.id, customer_id, environment)
     if not deployment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -144,10 +155,22 @@ async def get_deployment_status(
     response_model=list[CustomerDeployment],
     summary="List customer deployments",
 )
-async def list_customer_deployments(customer_id: str) -> list[CustomerDeployment]:
-    """List all deployments for a customer."""
+async def list_customer_deployments(
+    customer_id: str,
+    current_user: UserResponse = Depends(get_current_user),
+) -> list[CustomerDeployment]:
+    """List all deployments for a customer owned by the current user."""
+    # Verify the user owns this customer config
+    config = config_storage.get(current_user.id, customer_id)
+    if config is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Customer '{customer_id}' not found",
+        )
     deployments = db.get_deployments_by_customer(customer_id)
-    return [_doc_to_deployment(d) for d in deployments]
+    # Filter to only this user's deployments
+    user_deployments = [d for d in deployments if d.get("user_id") == current_user.id]
+    return [_doc_to_deployment(d) for d in user_deployments]
 
 
 @router.post(
@@ -160,11 +183,12 @@ async def destroy(
     customer_id: str,
     environment: str,
     request: DestroyRequest,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> DeploymentResponse:
     """Destroy infrastructure for a customer."""
     stack_name = f"{customer_id}-{environment}"
 
-    existing = db.get_deployment(customer_id, environment)
+    existing = db.get_deployment_for_user(current_user.id, customer_id, environment)
     if not existing:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -192,6 +216,14 @@ async def destroy(
 
     task = destroy_task.delay(customer_id, environment)
 
+    db.audit_log(
+        "deployment_destroy_started",
+        customer_id,
+        user_id=current_user.id,
+        environment=environment,
+        actor=current_user.email,
+    )
+
     return DeploymentResponse(
         customer_id=customer_id,
         environment=environment,
@@ -211,11 +243,12 @@ async def destroy(
 async def install_addons(
     customer_id: str,
     environment: str,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> DeploymentResponse:
     """Trigger addon installation (Karpenter + ArgoCD) via Celery task."""
     stack_name = f"{customer_id}-{environment}"
 
-    existing = db.get_deployment(customer_id, environment)
+    existing = db.get_deployment_for_user(current_user.id, customer_id, environment)
     if not existing:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

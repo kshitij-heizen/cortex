@@ -5,8 +5,10 @@ from typing import Union
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 
+from api.auth_models import UserResponse
 from api.config_resolver import resolve_customer_config
 from api.config_storage import config_storage
+from api.database import db
 from api.dependencies import get_current_user
 from api.models import (
     CustomerConfigInput,
@@ -20,7 +22,6 @@ from api.validation import ConfigValidationError, validate_config
 router = APIRouter(
     prefix="/api/v1/configs",
     tags=["configurations"],
-    dependencies=[Depends(get_current_user)],
 )
 
 
@@ -38,10 +39,11 @@ router = APIRouter(
 )
 async def create_config(
     request: CustomerConfigInput,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> Union[CustomerConfigResponse, JSONResponse]:
     """Create a new customer configuration."""
 
-    if config_storage.exists(request.customer_id):
+    if config_storage.exists(current_user.id, request.customer_id):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Configuration for customer '{request.customer_id}' already exists. "
@@ -53,7 +55,14 @@ async def create_config(
 
         validate_config(request, resolved)
 
-        config_storage.save(request.customer_id, resolved)
+        config_storage.save(current_user.id, request.customer_id, resolved)
+
+        db.audit_log(
+            "config_created",
+            request.customer_id,
+            user_id=current_user.id,
+            actor=current_user.email,
+        )
 
         return CustomerConfigResponse.from_resolved(resolved)
 
@@ -67,12 +76,14 @@ async def create_config(
 @router.get(
     "",
     response_model=CustomerConfigListResponse,
-    summary="List all customer configurations",
-    description="Retrieve all customer configurations.",
+    summary="List customer configurations",
+    description="Retrieve configurations belonging to the current user.",
 )
-async def list_configs() -> CustomerConfigListResponse:
-    """List all customer configurations."""
-    configs = config_storage.list_all()
+async def list_configs(
+    current_user: UserResponse = Depends(get_current_user),
+) -> CustomerConfigListResponse:
+    """List customer configurations for the current user."""
+    configs = config_storage.list_by_user(current_user.id)
     return CustomerConfigListResponse(
         configs=[CustomerConfigResponse.from_resolved(c) for c in configs],
         total=len(configs),
@@ -85,9 +96,12 @@ async def list_configs() -> CustomerConfigListResponse:
     summary="Get customer configuration",
     description="Retrieve a specific customer's fully-resolved configuration.",
 )
-async def get_config(customer_id: str) -> CustomerConfigResolved:
+async def get_config(
+    customer_id: str,
+    current_user: UserResponse = Depends(get_current_user),
+) -> CustomerConfigResolved:
     """Get a customer configuration by ID."""
-    config = config_storage.get(customer_id)
+    config = config_storage.get(current_user.id, customer_id)
     if config is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -111,16 +125,16 @@ async def get_config(customer_id: str) -> CustomerConfigResolved:
 async def update_config(
     customer_id: str,
     request: CustomerConfigInput,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> Union[CustomerConfigResponse, JSONResponse]:
     """Update a customer configuration."""
-   
-    existing_config = config_storage.get(customer_id)
+
+    existing_config = config_storage.get(current_user.id, customer_id)
     if existing_config is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Configuration for customer '{customer_id}' not found",
         )
-
 
     if request.customer_id != customer_id:
         raise HTTPException(
@@ -129,17 +143,20 @@ async def update_config(
         )
 
     try:
-       
         resolved = resolve_customer_config(request)
 
-       
         resolved.created_at = existing_config.created_at
 
-     
         validate_config(request, resolved)
 
-      
-        config_storage.save(customer_id, resolved)
+        config_storage.save(current_user.id, customer_id, resolved)
+
+        db.audit_log(
+            "config_updated",
+            customer_id,
+            user_id=current_user.id,
+            actor=current_user.email,
+        )
 
         return CustomerConfigResponse.from_resolved(resolved)
 
@@ -157,13 +174,23 @@ async def update_config(
     description="Delete a customer's configuration. This does not destroy any "
     "deployed infrastructure.",
 )
-async def delete_config(customer_id: str) -> None:
+async def delete_config(
+    customer_id: str,
+    current_user: UserResponse = Depends(get_current_user),
+) -> None:
     """Delete a customer configuration."""
-    if not config_storage.delete(customer_id):
+    if not config_storage.delete(current_user.id, customer_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Configuration for customer '{customer_id}' not found",
         )
+
+    db.audit_log(
+        "config_deleted",
+        customer_id,
+        user_id=current_user.id,
+        actor=current_user.email,
+    )
 
 
 @router.post(
@@ -178,10 +205,10 @@ async def delete_config(customer_id: str) -> None:
 )
 async def validate_config_endpoint(
     request: CustomerConfigInput,
+    current_user: UserResponse = Depends(get_current_user),
 ) -> Union[CustomerConfigResponse, JSONResponse]:
     """Validate a configuration without saving it."""
     try:
-        
         resolved = resolve_customer_config(request)
 
         validate_config(request, resolved)

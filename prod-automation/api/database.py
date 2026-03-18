@@ -30,12 +30,14 @@ class Database:
 
         self._deployments.create_index("stack_name", unique=True)
         self._deployments.create_index("customer_id")
+        self._deployments.create_index("user_id")
         self._locks.create_index("stack_name", unique=True)
         self._locks.create_index("expires_at", expireAfterSeconds=0)
         self._users.create_index("email", unique=True)
 
     def create_deployment(
         self,
+        user_id: str,
         customer_id: str,
         environment: str,
         aws_region: str,
@@ -49,6 +51,7 @@ class Database:
 
         now = datetime.now(timezone.utc)
         doc: dict[str, Any] = {
+            "user_id": user_id,
             "customer_id": customer_id,
             "environment": environment,
             "stack_name": stack_name,
@@ -71,6 +74,15 @@ class Database:
     ) -> Optional[dict[str, Any]]:
         stack_name = f"{customer_id}-{environment}"
         doc = self._deployments.find_one({"stack_name": stack_name})
+        if doc:
+            doc["status"] = DeploymentStatus(doc["status"])
+        return doc
+
+    def get_deployment_for_user(
+        self, user_id: str, customer_id: str, environment: str
+    ) -> Optional[dict[str, Any]]:
+        stack_name = f"{customer_id}-{environment}"
+        doc = self._deployments.find_one({"stack_name": stack_name, "user_id": user_id})
         if doc:
             doc["status"] = DeploymentStatus(doc["status"])
         return doc
@@ -116,6 +128,12 @@ class Database:
             doc["status"] = DeploymentStatus(doc["status"])
         return docs
 
+    def get_deployments_for_user(self, user_id: str) -> list[dict[str, Any]]:
+        docs = list(self._deployments.find({"user_id": user_id}))
+        for doc in docs:
+            doc["status"] = DeploymentStatus(doc["status"])
+        return docs
+
     def acquire_lock(self, stack_name: str, operation: str) -> bool:
         now = datetime.now(timezone.utc)
         try:
@@ -145,6 +163,7 @@ class Database:
         action: str,
         customer_id: str,
         *,
+        user_id: str = "",
         environment: str = "",
         details: str = "",
         actor: str = "system",
@@ -153,6 +172,7 @@ class Database:
             {
                 "action": action,
                 "customer_id": customer_id,
+                "user_id": user_id,
                 "environment": environment,
                 "details": details,
                 "actor": actor,

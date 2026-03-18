@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from api.auth_models import UserResponse
 from api.config_storage import config_storage
 from api.database import db
 from api.dependencies import get_current_user
@@ -15,8 +16,25 @@ from api.services.ssm_access import SsmAccessService
 router = APIRouter(
     prefix="/api/v1/clusters",
     tags=["cluster access"],
-    dependencies=[Depends(get_current_user)],
 )
+
+
+def _verify_deployment(user_id: str, customer_id: str, environment: str, require_succeeded: bool = True):
+    """Verify user owns the deployment and it's in a valid state."""
+    deployment = db.get_deployment_for_user(user_id, customer_id, environment)
+    if not deployment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Deployment {customer_id}-{environment} not found",
+        )
+
+    if require_succeeded and deployment["status"] != DeploymentStatus.SUCCEEDED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Deployment is not ready. Status: {deployment['status'].value}",
+        )
+
+    return deployment
 
 
 @router.get(
@@ -28,45 +46,34 @@ router = APIRouter(
 async def get_ssm_status(
     customer_id: str,
     environment: str = "prod",
+    current_user: UserResponse = Depends(get_current_user),
 ) -> SsmStatusResponse:
     """Get SSM access node status and readiness."""
-    
-    deployment = db.get_deployment(customer_id, environment)
-    if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Deployment {customer_id}-{environment} not found",
-        )
-
-    if deployment["status"] != DeploymentStatus.SUCCEEDED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Deployment is not ready. Status: {deployment['status'].value}",
-        )
+    _verify_deployment(current_user.id, customer_id, environment)
 
     try:
         service = SsmAccessService(customer_id, environment)
-        
+
         node_status = await service.get_access_node_status()
-        
+
         vpc_endpoints = await service.check_vpc_endpoints()
-        
+
         issues = []
-        
+
         if not node_status.enabled:
             issues.append("SSM access node is not enabled in deployment config")
         elif node_status.instance_state != "running":
             issues.append(f"Access node is not running (state: {node_status.instance_state})")
-        
+
         if not vpc_endpoints.get("ssm"):
             issues.append("VPC endpoint for SSM is not configured")
         if not vpc_endpoints.get("ssmmessages"):
             issues.append("VPC endpoint for SSM Messages is not configured")
         if not vpc_endpoints.get("ec2messages"):
             issues.append("VPC endpoint for EC2 Messages is not configured")
-        
+
         ready = len(issues) == 0
-        
+
         return SsmStatusResponse(
             customer_id=customer_id,
             environment=environment,
@@ -95,26 +102,15 @@ async def get_ssm_status(
 async def get_ssm_session(
     customer_id: str,
     environment: str = "prod",
+    current_user: UserResponse = Depends(get_current_user),
 ) -> SsmSessionResponse:
     """Get SSM session connection information."""
-    
-    deployment = db.get_deployment(customer_id, environment)
-    if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Deployment {customer_id}-{environment} not found",
-        )
-
-    if deployment["status"] != DeploymentStatus.SUCCEEDED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Deployment is not ready. Status: {deployment['status'].value}",
-        )
+    _verify_deployment(current_user.id, customer_id, environment)
 
     try:
         service = SsmAccessService(customer_id, environment)
         session_info = await service.get_session_info()
-        
+
         return SsmSessionResponse(
             customer_id=customer_id,
             environment=environment,
@@ -138,20 +134,10 @@ async def get_ssm_session(
 async def start_access_node(
     customer_id: str,
     environment: str = "prod",
+    current_user: UserResponse = Depends(get_current_user),
 ) -> dict:
     """Start the SSM access node (if stopped)."""
-    deployment = db.get_deployment(customer_id, environment)
-    if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Deployment {customer_id}-{environment} not found",
-        )
-
-    if deployment["status"] != DeploymentStatus.SUCCEEDED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Deployment is not ready. Status: {deployment['status'].value}",
-        )
+    _verify_deployment(current_user.id, customer_id, environment)
 
     try:
         service = SsmAccessService(customer_id, environment)
@@ -174,20 +160,10 @@ async def start_access_node(
 async def stop_access_node(
     customer_id: str,
     environment: str = "prod",
+    current_user: UserResponse = Depends(get_current_user),
 ) -> dict:
     """Stop the SSM access node (to save costs when not in use)."""
-    deployment = db.get_deployment(customer_id, environment)
-    if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Deployment {customer_id}-{environment} not found",
-        )
-
-    if deployment["status"] != DeploymentStatus.SUCCEEDED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Deployment is not ready. Status: {deployment['status'].value}",
-        )
+    _verify_deployment(current_user.id, customer_id, environment)
 
     try:
         service = SsmAccessService(customer_id, environment)
@@ -215,22 +191,12 @@ async def stop_access_node(
 async def install_argocd(
     customer_id: str,
     environment: str = "prod",
+    current_user: UserResponse = Depends(get_current_user),
 ) -> AddonInstallResult:
     """Trigger ArgoCD installation via SSM Run Command."""
-    deployment = db.get_deployment(customer_id, environment)
-    if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Deployment {customer_id}-{environment} not found",
-        )
+    _verify_deployment(current_user.id, customer_id, environment)
 
-    if deployment["status"] != DeploymentStatus.SUCCEEDED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Deployment must be in SUCCEEDED state. Current: {deployment['status'].value}",
-        )
-
-    config = config_storage.get(customer_id)
+    config = config_storage.get(current_user.id, customer_id)
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -272,14 +238,10 @@ async def get_argocd_install_status(
         description="SSM command ID from the install response. "
         "If omitted, checks the most recent install.",
     ),
+    current_user: UserResponse = Depends(get_current_user),
 ) -> AddonInstallResult:
     """Check ArgoCD installation status via SSM command invocation."""
-    deployment = db.get_deployment(customer_id, environment)
-    if not deployment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Deployment {customer_id}-{environment} not found",
-        )
+    _verify_deployment(current_user.id, customer_id, environment, require_succeeded=False)
 
     try:
         installer = AddonInstallerService(customer_id, environment)
