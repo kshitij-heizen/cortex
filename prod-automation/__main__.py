@@ -631,6 +631,40 @@ aws.secretsmanager.SecretVersion(
     ),
 )
 
+# Secrets Manager - NextJS secrets (ESO pulls these into k8s)
+nextjs_secret = aws.secretsmanager.Secret(
+    f"{config.customer_id}-nextjs-secrets",
+    name=f"/byoc/{config.customer_id}/nextjs",
+    recovery_window_in_days=0,
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+_nextjs_cfg = config.nextjs_secrets
+_nextjs_secret_data = {}
+if _nextjs_cfg:
+    _nextjs_secret_data = {
+        k: v
+        for k, v in {
+            "NEXTAUTH_SECRET": _nextjs_cfg.nextauth_secret,
+            "GOOGLE_CLIENT_ID": _nextjs_cfg.google_client_id,
+            "GOOGLE_CLIENT_SECRET": _nextjs_cfg.google_client_secret,
+            "AUTH_DYNAMODB_ID": _nextjs_cfg.auth_dynamodb_id,
+            "AUTH_DYNAMODB_SECRET": _nextjs_cfg.auth_dynamodb_secret,
+            "AWS_CONFIG": _nextjs_cfg.aws_config,
+            "NEXT_PUBLIC_MCP_ENCRYPTION_KEY": _nextjs_cfg.next_public_mcp_encryption_key,
+            "RESEND_API_KEY": _nextjs_cfg.resend_api_key,
+            "STRIPE_SECRET_KEY": _nextjs_cfg.stripe_secret_key,
+        }.items()
+        if v
+    }
+
+aws.secretsmanager.SecretVersion(
+    f"{config.customer_id}-nextjs-secrets-version",
+    secret_id=nextjs_secret.id,
+    secret_string=json.dumps(_nextjs_secret_data) if _nextjs_secret_data else "{}",
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
 cortex_ingestion_secret = aws.secretsmanager.Secret(
     f"{config.customer_id}-cortex-ingestion-secrets",
     name=f"/byoc/{config.customer_id}/cortex-ingestion",
@@ -784,6 +818,7 @@ pulumi.export("eks_oidc_provider_url", eks.oidc_provider_url)
 pulumi.export("eso_role_arn", eso_role.arn)
 pulumi.export("cortex_app_secret_arn", cortex_app_secret.arn)
 pulumi.export("cortex_ingestion_secret_arn", cortex_ingestion_secret.arn)
+pulumi.export("nextjs_secret_arn", nextjs_secret.arn)
 
 pulumi.export("documents_bucket_name", documents_bucket.bucket)
 pulumi.export("local_sources_bucket_name", local_sources_bucket.bucket)

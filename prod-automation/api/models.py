@@ -705,6 +705,26 @@ class MongoDBConfigResolved(BaseModel):
     connection_uri: Optional[str] = None
 
 
+class NextJsSecretsInput(BaseModel):
+    """NextJS application secrets stored in AWS Secrets Manager via ESO."""
+
+    nextauth_secret: str = Field(default="", description="NextAuth.js session secret")
+    google_client_id: str = Field(default="", description="Google OAuth client ID")
+    google_client_secret: str = Field(default="", description="Google OAuth client secret")
+    auth_dynamodb_id: str = Field(default="", description="AWS access key for DynamoDB auth")
+    auth_dynamodb_secret: str = Field(
+        default="", description="AWS secret key for DynamoDB auth"
+    )
+    aws_config: str = Field(default="", description="AWS config JSON (S3 screenshots, etc.)")
+    next_public_mcp_encryption_key: str = Field(default="", description="MCP encryption key")
+    resend_api_key: str = Field(default="", description="Resend API key for email")
+    stripe_secret_key: str = Field(default="", description="Stripe secret key")
+
+    next_public_frontend_config: str = Field(default="", description="Frontend config JSON")
+    nextauth_url: str = Field(default="http://localhost:3000", description="NextAuth URL")
+    auth_dynamodb_region: str = Field(default="us-east-1", description="DynamoDB region for auth")
+    email_from: str = Field(default="", description="Email sender address")
+
 
 class EsoSecretsInput(BaseModel):
     """Secrets to store in AWS Secrets Manager via ESO."""
@@ -746,6 +766,7 @@ class CustomerConfigInput(BaseModel):
     addons: Optional[ClusterAddonsInput] = None
 
     eso_secrets: Optional[EsoSecretsInput] = None
+    nextjs_secrets: Optional[NextJsSecretsInput] = None
 
     kafka_config: Optional[KafkaConfigInput] = None
 
@@ -768,6 +789,7 @@ class CustomerConfigResolved(BaseModel):
     addons: Optional[ClusterAddonsResolved] = None
 
     eso_secrets: Optional[EsoSecretsInput] = None
+    nextjs_secrets: Optional[NextJsSecretsInput] = None
 
     kafka_config: Optional[KafkaConfigResolved] = None
 
