@@ -10,8 +10,8 @@ Manual steps to deploy the platform on a single EC2 instance with Docker Compose
 
 ## 1. Create IAM Role for EC2
 
-The platform EC2 needs permissions for: STS (assume customer roles), S3 (Pulumi state),
-KMS (Pulumi secrets), SSM (addon install), CloudWatch Logs, Secrets Manager.
+The platform EC2 needs permissions for: STS (assume customer roles), S3 (Pulumi state), KMS (Pulumi secrets), SSM (addon
+install), CloudWatch Logs, Secrets Manager.
 
 ```bash
 cat > /tmp/ec2-trust-policy.json << 'EOF'
@@ -149,34 +149,33 @@ aws ec2 allocate-address --domain vpc --tag-specifications \
   'ResourceType=elastic-ip,Tags=[{Key=Name,Value=byoc-platform}]'
 ```
 
-
-cat > /tmp/user-data.sh << 'EOF'
-#!/bin/bash
-set -e
+cat > /tmp/user-data.sh << 'EOF' #!/bin/bash set -e
 
 # Update system
+
 yum update -y
 
 # Install Docker
-yum install -y docker git
-systemctl enable docker
-systemctl start docker
+
+yum install -y docker git systemctl enable docker systemctl start docker
 
 # Install Docker Compose v2
-DOCKER_CONFIG=/usr/local/lib/docker/cli-plugins
-mkdir -p "$DOCKER_CONFIG"
+
+DOCKER_CONFIG=/usr/local/lib/docker/cli-plugins mkdir -p
+"$DOCKER_CONFIG"
 curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
-  -o "$DOCKER_CONFIG/docker-compose"
+ -o "$DOCKER_CONFIG/docker-compose"
 chmod +x "$DOCKER_CONFIG/docker-compose"
 
 # Add ec2-user to docker group
+
 usermod -aG docker ec2-user
 
 # Install certbot
+
 yum install -y certbot
 
-echo "=== Docker + Compose installed ==="
-EOF
+echo "=== Docker + Compose installed ===" EOF
 
 ## 4. Launch EC2 Instance
 

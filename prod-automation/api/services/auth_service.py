@@ -4,24 +4,15 @@ from typing import Any, Optional
 
 import bcrypt
 from jose import JWTError, jwt
-from pymongo.collection import Collection
 from pymongo.errors import DuplicateKeyError
 
 from api.auth_models import AuthResponse, UserResponse
+from api.database import db
 from api.settings import settings
 
 logger = logging.getLogger(__name__)
 
 ALGORITHM = "HS256"
-
-
-def _get_users_collection() -> Collection[dict[str, Any]]:
-    from api.database import db
-
-    if not hasattr(db, "_users"):
-        db._users = db._db["users"]
-        db._users.create_index("email", unique=True)
-    return db._users
 
 
 def hash_password(password: str) -> str:
@@ -51,7 +42,6 @@ def decode_access_token(token: str) -> Optional[dict[str, Any]]:
 
 
 def register_user(name: str, email: str, password: str) -> AuthResponse:
-    users = _get_users_collection()
     now = datetime.now(timezone.utc)
 
     doc: dict[str, Any] = {
@@ -64,7 +54,7 @@ def register_user(name: str, email: str, password: str) -> AuthResponse:
     }
 
     try:
-        result = users.insert_one(doc)
+        result = db._users.insert_one(doc)
     except DuplicateKeyError:
         raise ValueError("A user with this email already exists")
 
@@ -83,8 +73,7 @@ def register_user(name: str, email: str, password: str) -> AuthResponse:
 
 
 def authenticate_user(email: str, password: str) -> AuthResponse:
-    users = _get_users_collection()
-    user = users.find_one({"email": email.lower().strip()})
+    user = db._users.find_one({"email": email.lower().strip()})
 
     if not user:
         raise ValueError("Invalid email or password")
@@ -109,10 +98,8 @@ def authenticate_user(email: str, password: str) -> AuthResponse:
 def get_user_by_id(user_id: str) -> Optional[UserResponse]:
     from bson import ObjectId
 
-    users = _get_users_collection()
-
     try:
-        user = users.find_one({"_id": ObjectId(user_id)})
+        user = db._users.find_one({"_id": ObjectId(user_id)})
     except Exception:
         return None
 

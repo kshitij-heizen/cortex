@@ -8,64 +8,82 @@ config:
   byoc-platform:availabilityZones: us-east-1a,us-east-1b,us-east-1c
   byoc-platform:vpcCidr: 10.100.0.0/16
   byoc-platform:natGatewayStrategy: single
-  byoc-platform:publicSubnets: '[{"cidr_block": "10.100.0.0/24", "availability_zone": "us-east-1a", "name": "acme-corp-public-a", "tags": {"Environment": "production", "Customer": "heizen", "ManagedBy": "pulumi", "Project": "byoc-platform", "Owner": "platform-team", "Tier": "public"}}, {"cidr_block": "10.100.1.0/24", "availability_zone": "us-east-1b", "name": "acme-corp-public-b", "tags": {"Environment": "production", "Customer": "heizen", "ManagedBy": "pulumi", "Project": "byoc-platform", "Owner": "platform-team", "Tier": "public"}}, {"cidr_block": "10.100.2.0/24", "availability_zone": "us-east-1c", "name": "acme-corp-public-c", "tags": {"Environment": "production", "Customer": "heizen", "ManagedBy": "pulumi", "Project": "byoc-platform", "Owner": "platform-team", "Tier": "public"}}]'
-  byoc-platform:privateSubnets: '[{"cidr_block": "10.100.16.0/20", "availability_zone": "us-east-1a", "name": "acme-corp-private-a", "tags": {"SubnetType": "private", "kubernetes.io/role/internal-elb": "1", "Environment": "production", "Customer": "heizen", "ManagedBy": "pulumi", "Project": "byoc-platform", "Owner": "platform-team", "Tier": "private"}}, {"cidr_block": "10.100.32.0/20", "availability_zone": "us-east-1b", "name": "acme-corp-private-b", "tags": {"SubnetType": "private", "kubernetes.io/role/internal-elb": "1", "Environment": "production", "Customer": "heizen", "ManagedBy": "pulumi", "Project": "byoc-platform", "Owner": "platform-team", "Tier": "private"}}, {"cidr_block": "10.100.48.0/20", "availability_zone": "us-east-1c", "name": "acme-corp-private-c", "tags": {"SubnetType": "private", "kubernetes.io/role/internal-elb": "1", "Environment": "production", "Customer": "heizen", "ManagedBy": "pulumi", "Project": "byoc-platform", "Owner": "platform-team", "Tier": "private"}}]'
-  byoc-platform:vpcEndpointS3: "true"
-  byoc-platform:vpcEndpointDynamodb: "false"
-  byoc-platform:vpcEndpointEcrApi: "true"
-  byoc-platform:vpcEndpointEcrDkr: "true"
-  byoc-platform:vpcEndpointSts: "true"
-  byoc-platform:vpcEndpointLogs: "true"
-  byoc-platform:vpcEndpointEc2: "false"
-  byoc-platform:vpcEndpointSsm: "true"
-  byoc-platform:vpcEndpointSsmMessages: "true"
-  byoc-platform:vpcEndpointEc2Messages: "true"
-  byoc-platform:vpcEndpointElb: "false"
-  byoc-platform:vpcEndpointAutoscaling: "false"
-  byoc-platform:enableDnsHostnames: "true"
-  byoc-platform:enableDnsSupport: "true"
-  byoc-platform:eksVersion: "1.31"
+  byoc-platform:publicSubnets:
+    '[{"cidr_block": "10.100.0.0/24", "availability_zone": "us-east-1a", "name": "acme-corp-public-a", "tags":
+    {"Environment": "production", "Customer": "heizen", "ManagedBy": "pulumi", "Project": "byoc-platform", "Owner":
+    "platform-team", "Tier": "public"}}, {"cidr_block": "10.100.1.0/24", "availability_zone": "us-east-1b", "name":
+    "acme-corp-public-b", "tags": {"Environment": "production", "Customer": "heizen", "ManagedBy": "pulumi", "Project":
+    "byoc-platform", "Owner": "platform-team", "Tier": "public"}}, {"cidr_block": "10.100.2.0/24", "availability_zone":
+    "us-east-1c", "name": "acme-corp-public-c", "tags": {"Environment": "production", "Customer": "heizen", "ManagedBy":
+    "pulumi", "Project": "byoc-platform", "Owner": "platform-team", "Tier": "public"}}]'
+  byoc-platform:privateSubnets:
+    '[{"cidr_block": "10.100.16.0/20", "availability_zone": "us-east-1a", "name": "acme-corp-private-a", "tags":
+    {"SubnetType": "private", "kubernetes.io/role/internal-elb": "1", "Environment": "production", "Customer": "heizen",
+    "ManagedBy": "pulumi", "Project": "byoc-platform", "Owner": "platform-team", "Tier": "private"}}, {"cidr_block":
+    "10.100.32.0/20", "availability_zone": "us-east-1b", "name": "acme-corp-private-b", "tags": {"SubnetType":
+    "private", "kubernetes.io/role/internal-elb": "1", "Environment": "production", "Customer": "heizen", "ManagedBy":
+    "pulumi", "Project": "byoc-platform", "Owner": "platform-team", "Tier": "private"}}, {"cidr_block":
+    "10.100.48.0/20", "availability_zone": "us-east-1c", "name": "acme-corp-private-c", "tags": {"SubnetType":
+    "private", "kubernetes.io/role/internal-elb": "1", "Environment": "production", "Customer": "heizen", "ManagedBy":
+    "pulumi", "Project": "byoc-platform", "Owner": "platform-team", "Tier": "private"}}]'
+  byoc-platform:vpcEndpointS3: 'true'
+  byoc-platform:vpcEndpointDynamodb: 'false'
+  byoc-platform:vpcEndpointEcrApi: 'true'
+  byoc-platform:vpcEndpointEcrDkr: 'true'
+  byoc-platform:vpcEndpointSts: 'true'
+  byoc-platform:vpcEndpointLogs: 'true'
+  byoc-platform:vpcEndpointEc2: 'false'
+  byoc-platform:vpcEndpointSsm: 'true'
+  byoc-platform:vpcEndpointSsmMessages: 'true'
+  byoc-platform:vpcEndpointEc2Messages: 'true'
+  byoc-platform:vpcEndpointElb: 'false'
+  byoc-platform:vpcEndpointAutoscaling: 'false'
+  byoc-platform:enableDnsHostnames: 'true'
+  byoc-platform:enableDnsSupport: 'true'
+  byoc-platform:eksVersion: '1.31'
   byoc-platform:serviceIpv4Cidr: 172.20.0.0/16
-  byoc-platform:endpointPrivateAccess: "true"
-  byoc-platform:endpointPublicAccess: "true"
-  byoc-platform:bootstrapClusterCreatorAdmin: "true"
+  byoc-platform:endpointPrivateAccess: 'true'
+  byoc-platform:endpointPublicAccess: 'true'
+  byoc-platform:bootstrapClusterCreatorAdmin: 'true'
   byoc-platform:authenticationMode: API_AND_CONFIG_MAP
   byoc-platform:publicAccessCidrs: 0.0.0.0/0
-  byoc-platform:ssmAccessNodeEnabled: "true"
+  byoc-platform:ssmAccessNodeEnabled: 'true'
   byoc-platform:ssmAccessNodeInstanceType: t3.small
-  byoc-platform:loggingEnabled: "true"
+  byoc-platform:loggingEnabled: 'true'
   byoc-platform:loggingTypes: api,audit,authenticator,controllerManager,scheduler
-  byoc-platform:encryptionEnabled: "true"
-  byoc-platform:zonalShiftEnabled: "false"
+  byoc-platform:encryptionEnabled: 'true'
+  byoc-platform:zonalShiftEnabled: 'false'
   byoc-platform:bootstrapInstanceTypes: t3.medium
-  byoc-platform:bootstrapDesiredSize: "2"
-  byoc-platform:bootstrapMinSize: "2"
-  byoc-platform:bootstrapMaxSize: "3"
-  byoc-platform:bootstrapDiskSize: "50"
+  byoc-platform:bootstrapDesiredSize: '2'
+  byoc-platform:bootstrapMinSize: '2'
+  byoc-platform:bootstrapMaxSize: '3'
+  byoc-platform:bootstrapDiskSize: '50'
   byoc-platform:bootstrapLabels: '{"node-role": "system", "workload-type": "platform"}'
   byoc-platform:karpenterVersion: 1.0.0
   byoc-platform:karpenterInstanceFamilies: t3,t3a,m5,m5a,c5,c5a
   byoc-platform:karpenterInstanceSizes: medium,large,xlarge,2xlarge
   byoc-platform:karpenterCapacityTypes: spot,on-demand
   byoc-platform:karpenterArchitectures: amd64
-  byoc-platform:karpenterCpuLimit: "500"
-  byoc-platform:karpenterMemoryLimitGb: "500"
+  byoc-platform:karpenterCpuLimit: '500'
+  byoc-platform:karpenterMemoryLimitGb: '500'
   byoc-platform:karpenterConsolidationPolicy: WhenEmptyOrUnderutilized
-  byoc-platform:karpenterConsolidateAfterSeconds: "30"
-  byoc-platform:addonVpcCni: "true"
-  byoc-platform:addonCoredns: "true"
-  byoc-platform:addonKubeProxy: "true"
-  byoc-platform:addonEbsCsi: "true"
-  byoc-platform:addonEfsCsi: "false"
-  byoc-platform:addonPodIdentity: "true"
-  byoc-platform:addonSnapshot: "false"
-  byoc-platform:tags: '{"Environment": "production", "Customer": "heizen", "ManagedBy": "pulumi", "Project": "byoc-platform", "Owner": "platform-team"}'
-  byoc-platform:argoCDEnabled: "true"
-  byoc-platform:customKafka: "false"
+  byoc-platform:karpenterConsolidateAfterSeconds: '30'
+  byoc-platform:addonVpcCni: 'true'
+  byoc-platform:addonCoredns: 'true'
+  byoc-platform:addonKubeProxy: 'true'
+  byoc-platform:addonEbsCsi: 'true'
+  byoc-platform:addonEfsCsi: 'false'
+  byoc-platform:addonPodIdentity: 'true'
+  byoc-platform:addonSnapshot: 'false'
+  byoc-platform:tags:
+    '{"Environment": "production", "Customer": "heizen", "ManagedBy": "pulumi", "Project": "byoc-platform", "Owner":
+    "platform-team"}'
+  byoc-platform:argoCDEnabled: 'true'
+  byoc-platform:customKafka: 'false'
   byoc-platform:kafkaAuthType: IAM
   byoc-platform:kafkaTopic: document-ingestion
   byoc-platform:kafkaGroupId: ingestion-service-group
-  byoc-platform:mongodbEnabled: "true"
+  byoc-platform:mongodbEnabled: 'true'
   byoc-platform:mongodbMode: atlas
   byoc-platform:mongodbAtlasClientId: mdb_sa_id_69abdceee20ba70d731872b8
   byoc-platform:mongodbAtlasClientSecret:
@@ -77,14 +95,14 @@ config:
   byoc-platform:mongodbDbUsername: cortex
   byoc-platform:mongodbDbPassword:
     secure: v1:okZfuM6Ne5H+5Co4:Xbs/GxxmGGKsHQ8meY+F8KiTJAo97O8w6uA=
-  byoc-platform:mongodbDiskSizeGb: "10"
+  byoc-platform:mongodbDiskSizeGb: '10'
   byoc-platform:mongodbAtlasCidrBlock: 192.168.248.0/21
   byoc-platform:esoFalkordbPassword:
     secure: v1:/iNHcBq2iPuEbpBj:iQ/taUAKSLaIb13W/6z0qe8I5tYtVMqmqGI=
   byoc-platform:esoMilvusToken:
     secure: v1:P6dfVA4KdRwZhyaL:4ORN5CAyukanVyS8M6RBmR5lEpZD6O56bZlv
-  byoc-platform:esoGoogleApiKey: ""
-  byoc-platform:esoGeminiApiKey: ""
+  byoc-platform:esoGoogleApiKey: ''
+  byoc-platform:esoGeminiApiKey: ''
   byoc-platform:esoGithubArgocdCdToken:
     secure: v1:bFHnSng8TYbnRivO:BZzLPrnE6WgG2diVcyBZnByv3Ok4dGyVHSP1xMICA9c/mspbOuEXdEUqUJGwPrLYDZ1/jKK/cYg=
 encryptionsalt: v1:974oeqP6ceI=:v1:OTgKL+S1sNPmfKvF:nI1NUr5JAcLLAiqOmfserUTHyByZXg==

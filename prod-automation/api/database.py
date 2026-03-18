@@ -26,11 +26,13 @@ class Database:
         self._db = self._client[self._db_name]
         self._deployments: Collection[dict[str, Any]] = self._db["deployments"]
         self._locks: Collection[dict[str, Any]] = self._db["locks"]
+        self._users: Collection[dict[str, Any]] = self._db["users"]
 
         self._deployments.create_index("stack_name", unique=True)
         self._deployments.create_index("customer_id")
         self._locks.create_index("stack_name", unique=True)
         self._locks.create_index("expires_at", expireAfterSeconds=0)
+        self._users.create_index("email", unique=True)
 
     def create_deployment(
         self,
