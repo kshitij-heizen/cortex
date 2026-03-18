@@ -2,11 +2,13 @@
 
 from typing import Union
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 
+from api.auth_models import UserResponse
 from api.config_resolver import resolve_customer_config
 from api.config_storage import config_storage
+from api.dependencies import get_current_user
 from api.models import (
     CustomerConfigInput,
     CustomerConfigListResponse,
@@ -16,7 +18,11 @@ from api.models import (
 )
 from api.validation import ConfigValidationError, validate_config
 
-router = APIRouter(prefix="/api/v1/configs", tags=["configurations"])
+router = APIRouter(
+    prefix="/api/v1/configs",
+    tags=["configurations"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.post(

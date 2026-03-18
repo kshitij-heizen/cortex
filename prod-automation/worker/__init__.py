@@ -1,2 +1,0 @@
-# Celery worker package
-

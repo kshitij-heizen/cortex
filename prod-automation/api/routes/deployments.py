@@ -2,10 +2,11 @@ import json
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from api.config_storage import config_storage
 from api.database import db
+from api.dependencies import get_current_user
 from api.models import (
     CustomerDeployment,
     DeploymentResponse,
@@ -16,7 +17,11 @@ from api.models import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/deployments", tags=["deployments"])
+router = APIRouter(
+    prefix="/api/v1/deployments",
+    tags=["deployments"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 def _parse_deployment_outputs(outputs_raw: str | None) -> dict | None:

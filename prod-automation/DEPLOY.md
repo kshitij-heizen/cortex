@@ -149,13 +149,42 @@ aws ec2 allocate-address --domain vpc --tag-specifications \
   'ResourceType=elastic-ip,Tags=[{Key=Name,Value=byoc-platform}]'
 ```
 
+
+cat > /tmp/user-data.sh << 'EOF'
+#!/bin/bash
+set -e
+
+# Update system
+yum update -y
+
+# Install Docker
+yum install -y docker git
+systemctl enable docker
+systemctl start docker
+
+# Install Docker Compose v2
+DOCKER_CONFIG=/usr/local/lib/docker/cli-plugins
+mkdir -p "$DOCKER_CONFIG"
+curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
+  -o "$DOCKER_CONFIG/docker-compose"
+chmod +x "$DOCKER_CONFIG/docker-compose"
+
+# Add ec2-user to docker group
+usermod -aG docker ec2-user
+
+# Install certbot
+yum install -y certbot
+
+echo "=== Docker + Compose installed ==="
+EOF
+
 ## 4. Launch EC2 Instance
 
 ```bash
 aws ec2 run-instances \
   --image-id ami-0c02fb55956c7d316 \
   --instance-type t3.medium \
-  --key-name <YOUR_KEY_PAIR_NAME> \
+  --key-name cortexkshitij \
   --security-group-ids "$SG_ID" \
   --iam-instance-profile Name=byoc-platform-ec2 \
   --block-device-mappings '[{"DeviceName":"/dev/xvda","Ebs":{"VolumeSize":30,"VolumeType":"gp3"}}]' \

@@ -9,10 +9,13 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from api.routes.auth import router as auth_router
 from api.routes.configs import router as configs_router
 from api.routes.deployments import router as deployments_router
 from api.routes.cluster import router as cluster_router
+from api.settings import settings
 
 app = FastAPI(
     title="Cortex Prod automation",
@@ -21,6 +24,15 @@ app = FastAPI(
     version="2.0.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in settings.cors_origins.split(",")],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth_router)
 app.include_router(configs_router)
 app.include_router(deployments_router)
 app.include_router(cluster_router)

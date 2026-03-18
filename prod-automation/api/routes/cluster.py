@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from api.config_storage import config_storage
 from api.database import db
+from api.dependencies import get_current_user
 from api.models import (
     AddonInstallResult,
     DeploymentStatus,
@@ -11,7 +12,11 @@ from api.models import (
 from api.services.addon_installer import AddonInstallerService
 from api.services.ssm_access import SsmAccessService
 
-router = APIRouter(prefix="/api/v1/clusters", tags=["cluster access"])
+router = APIRouter(
+    prefix="/api/v1/clusters",
+    tags=["cluster access"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get(

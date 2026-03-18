@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     github_pat: str = ""
     github_repo: str = "opengig/cortex"
 
+    # Auth / JWT
+    jwt_secret: str = "change-me-in-production"
+    jwt_expires_in_hours: int = 168  # 7 days
+
+    # CORS
+    cors_origins: str = "http://localhost:3000"
+
 
 @lru_cache
 def get_settings() -> Settings:
