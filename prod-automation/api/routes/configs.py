@@ -5,7 +5,6 @@ from typing import Union
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 
-from api.auth_models import UserResponse
 from api.config_resolver import resolve_customer_config
 from api.config_storage import config_storage
 from api.dependencies import get_current_user
