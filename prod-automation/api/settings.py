@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     nextjs_auth_dynamodb_region: str = "us-east-1"
     nextjs_email_from: str = ""
 
+    # AI API keys (platform-managed)
+    google_api_key: str = ""
+    gemini_api_key: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

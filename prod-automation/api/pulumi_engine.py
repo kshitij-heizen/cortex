@@ -240,8 +240,8 @@ class PulumiEngine:
         eso = config.eso_secrets
         _s(stack, "esoFalkordbPassword", platform_settings.falkordb_password, secret=True)
         _s(stack, "esoMilvusToken", platform_settings.milvus_token, secret=True)
-        _s(stack, "esoGoogleApiKey", eso.google_api_key if eso else "")
-        _s(stack, "esoGeminiApiKey", eso.gemini_api_key if eso else "")
+        _s(stack, "esoGoogleApiKey", platform_settings.google_api_key)
+        _s(stack, "esoGeminiApiKey", platform_settings.gemini_api_key)
         _s(
             stack,
             "esoGithubArgocdCdToken",
