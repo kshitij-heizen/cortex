@@ -234,30 +234,56 @@ class PulumiEngine:
             if mongo.connection_uri:
                 _s(stack, "mongodbConnectionUri", mongo.connection_uri, secret=True)
 
-        # ESO Secrets
-        _eso_default_falkordb = "changeme"
-        _eso_default_milvus = "root:Milvus"
+        # ESO Secrets — platform defaults from settings, customer provides only API keys
+        from api.settings import settings as platform_settings
+
         eso = config.eso_secrets
-        _s(
-            stack,
-            "esoFalkordbPassword",
-            eso.falkordb_password if eso else _eso_default_falkordb,
-            secret=True,
-        )
-        _s(
-            stack,
-            "esoMilvusToken",
-            eso.milvus_token if eso else _eso_default_milvus,
-            secret=True,
-        )
+        _s(stack, "esoFalkordbPassword", platform_settings.falkordb_password, secret=True)
+        _s(stack, "esoMilvusToken", platform_settings.milvus_token, secret=True)
         _s(stack, "esoGoogleApiKey", eso.google_api_key if eso else "")
         _s(stack, "esoGeminiApiKey", eso.gemini_api_key if eso else "")
         _s(
             stack,
             "esoGithubArgocdCdToken",
-            eso.github_argocd_cd_token if eso else "",
+            platform_settings.github_pat,
             secret=True,
         )
+
+        # NextJS secrets — all from platform settings
+        ps = platform_settings
+        if ps.nextjs_nextauth_secret:
+            _s(stack, "nextjsNextauthSecret", ps.nextjs_nextauth_secret, secret=True)
+        if ps.nextjs_google_client_id:
+            _s(stack, "nextjsGoogleClientId", ps.nextjs_google_client_id)
+        if ps.nextjs_google_client_secret:
+            _s(
+                stack,
+                "nextjsGoogleClientSecret",
+                ps.nextjs_google_client_secret,
+                secret=True,
+            )
+        if ps.nextjs_auth_dynamodb_id:
+            _s(stack, "nextjsAuthDynamodbId", ps.nextjs_auth_dynamodb_id, secret=True)
+        if ps.nextjs_auth_dynamodb_secret:
+            _s(
+                stack,
+                "nextjsAuthDynamodbSecret",
+                ps.nextjs_auth_dynamodb_secret,
+                secret=True,
+            )
+        if ps.nextjs_aws_config:
+            _s(stack, "nextjsAwsConfig", ps.nextjs_aws_config, secret=True)
+        if ps.nextjs_mcp_encryption_key:
+            _s(
+                stack,
+                "nextjsMcpEncryptionKey",
+                ps.nextjs_mcp_encryption_key,
+                secret=True,
+            )
+        if ps.nextjs_resend_api_key:
+            _s(stack, "nextjsResendApiKey", ps.nextjs_resend_api_key, secret=True)
+        if ps.nextjs_stripe_secret_key:
+            _s(stack, "nextjsStripeSecretKey", ps.nextjs_stripe_secret_key, secret=True)
 
     def deploy(
         self,

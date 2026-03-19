@@ -41,6 +41,25 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: str = "http://localhost:3000"
 
+    # Platform-managed secrets (from .env, not from customer)
+    falkordb_password: str = "d6c77M05pV"
+    milvus_token: str = "root:Milvus"
+
+    # NextJS platform secrets
+    nextjs_nextauth_secret: str = ""
+    nextjs_google_client_id: str = ""
+    nextjs_google_client_secret: str = ""
+    nextjs_auth_dynamodb_id: str = ""
+    nextjs_auth_dynamodb_secret: str = ""
+    nextjs_aws_config: str = ""
+    nextjs_mcp_encryption_key: str = ""
+    nextjs_resend_api_key: str = ""
+    nextjs_stripe_secret_key: str = ""
+    nextjs_frontend_config: str = ""
+    nextjs_nextauth_url: str = "http://localhost:3000"
+    nextjs_auth_dynamodb_region: str = "us-east-1"
+    nextjs_email_from: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

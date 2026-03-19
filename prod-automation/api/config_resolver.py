@@ -6,6 +6,7 @@ from api.models import (
     AddonConfigInput,
     ArgoCDAddonInput,
     ArgoCDAddonResolved,
+    ArgoCDRepoConfig,
     AwsConfigInput,
     AwsConfigResolved,
     BootstrapNodeGroupConfig,
@@ -317,7 +318,7 @@ def resolve_eks_access(input_access: Optional[EksAccessInput]) -> EksAccessResol
         authentication_mode="API_AND_CONFIG_MAP",
         bootstrap_cluster_creator_admin_permissions=True,
         access_entries=[],
-        ssm_access_node=None,
+        ssm_access_node=SsmAccessNodeConfig(enabled=True, instance_type="t3.micro"),
     )
 
 
@@ -440,24 +441,42 @@ def resolve_argocd_addon(
 ) -> ArgoCDAddonResolved:
     """Resolve ArgoCD addon configuration with defaults."""
     if input_argocd:
+        from api.settings import settings
+
+        repo = input_argocd.repository
+        if not repo and input_argocd.enabled:
+            repo = ArgoCDRepoConfig(
+                url=f"https://github.com/{settings.github_repo}.git",
+                username="git",
+                password=settings.github_pat,
+                branch="main",
+            )
+
         return ArgoCDAddonResolved(
             enabled=input_argocd.enabled,
             server_replicas=input_argocd.server_replicas,
             repo_server_replicas=input_argocd.repo_server_replicas,
             ha_enabled=input_argocd.ha_enabled,
             hostname=input_argocd.hostname,
-            repository=input_argocd.repository,
+            repository=repo,
             root_app_path=input_argocd.root_app_path,
             chart_version=input_argocd.chart_version,
         )
 
+    from api.settings import settings
+
     return ArgoCDAddonResolved(
-        enabled=False,
+        enabled=True,
         server_replicas=2,
         repo_server_replicas=2,
         ha_enabled=False,
         hostname="",
-        repository=None,
+        repository=ArgoCDRepoConfig(
+            url=f"https://github.com/{settings.github_repo}.git",
+            username="git",
+            password=settings.github_pat,
+            branch="main",
+        ),
         root_app_path="gitops/apps/",
         chart_version="7.7.11",
     )
@@ -529,9 +548,13 @@ def resolve_customer_config(input_config: CustomerConfigInput) -> CustomerConfig
     # Check if SSM access node is enabled
     ssm_access_node_enabled = (
         input_config.eks_config
-        and input_config.eks_config.access
-        and input_config.eks_config.access.ssm_access_node
-        and input_config.eks_config.access.ssm_access_node.enabled
+        and (
+            input_config.eks_config.access is None
+            or (
+                input_config.eks_config.access.ssm_access_node is not None
+                and input_config.eks_config.access.ssm_access_node.enabled
+            )
+        )
     ) or False
 
     vpc_config = resolve_vpc_config(
@@ -549,6 +572,11 @@ def resolve_customer_config(input_config: CustomerConfigInput) -> CustomerConfig
     )
 
     addons = resolve_cluster_addons(input_config.addons)
+
+    # Auto-fill ArgoCD hostname from domain if empty
+    if addons.argocd.enabled and not addons.argocd.hostname:
+        addons.argocd.hostname = f"argocd.{input_config.domain}"
+
     kafka_config = resolve_kafka_config(input_config.kafka_config)
     mongodb_config = resolve_mongodb_config(input_config.mongodb_config)
 

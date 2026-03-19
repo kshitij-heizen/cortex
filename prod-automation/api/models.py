@@ -166,8 +166,8 @@ class VpcConfigInput(BaseModel):
     def validate_vpc_cidr(cls, v: str) -> str:
         try:
             network = ipaddress.ip_network(v, strict=False)
-            if network.prefixlen < 16 or network.prefixlen > 24:
-                raise ValueError("VPC CIDR prefix must be between /16 and /24")
+            if network.prefixlen < 16 or network.prefixlen > 21:
+                raise ValueError("VPC CIDR prefix must be between /16 and /21")
         except ValueError as e:
             raise ValueError(f"Invalid VPC CIDR: {e}") from e
         return v
@@ -456,7 +456,7 @@ class KarpenterConfigResolved(BaseModel):
 class EksConfigInput(BaseModel):
     """EKS cluster configuration input - Karpenter is always used for scaling."""
 
-    version: str = Field(default="1.31", description="Kubernetes version")
+    version: str = Field(default="1.34", description="Kubernetes version")
     service_ipv4_cidr: str = Field(
         default="172.20.0.0/16",
         description="Kubernetes service CIDR",

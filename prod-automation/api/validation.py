@@ -163,11 +163,11 @@ def validate_vpc_cidrs(vpc_config: VpcConfigResolved) -> list[ValidationErrorDet
     # Check VPC CIDR size (must be /16 to /24 for a valid k8s cluster to exist)
     try:
         vpc_net = ipaddress.ip_network(vpc_cidr, strict=False)
-        if vpc_net.prefixlen < 16 or vpc_net.prefixlen > 24:
+        if vpc_net.prefixlen < 16 or vpc_net.prefixlen > 21:
             errors.append(
                 ValidationErrorDetail(
                     field="vpc_config.cidr_block",
-                    message="VPC CIDR must be between /16 and /24",
+                    message="VPC CIDR must be between /16 and /21",
                     value=vpc_cidr,
                 )
             )

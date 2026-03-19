@@ -160,7 +160,7 @@ class AccessNode(pulumi.ComponentResource):
         )
 
         # Pinned tool versions for reproducibility and security
-        kubectl_version = "v1.31.4"
+        kubectl_version = "v1.34.0"
         helm_version = "v3.16.4"
 
         def build_user_data(cluster_name_str: str) -> str:
