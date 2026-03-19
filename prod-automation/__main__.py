@@ -631,6 +631,37 @@ aws.secretsmanager.SecretVersion(
     ),
 )
 
+# Secrets Manager - NextJS secrets (ESO pulls these into k8s)
+nextjs_secret = aws.secretsmanager.Secret(
+    f"{config.customer_id}-nextjs-secrets",
+    name=f"/byoc/{config.customer_id}/nextjs",
+    recovery_window_in_days=0,
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
+_nextjs_secret_data = {
+    k: v
+    for k, v in {
+        "NEXTAUTH_SECRET": pulumi_config.get("nextjsNextauthSecret") or "",
+        "GOOGLE_CLIENT_ID": pulumi_config.get("nextjsGoogleClientId") or "",
+        "GOOGLE_CLIENT_SECRET": pulumi_config.get("nextjsGoogleClientSecret") or "",
+        "AUTH_DYNAMODB_ID": pulumi_config.get("nextjsAuthDynamodbId") or "",
+        "AUTH_DYNAMODB_SECRET": pulumi_config.get("nextjsAuthDynamodbSecret") or "",
+        "AWS_CONFIG": pulumi_config.get("nextjsAwsConfig") or "",
+        "NEXT_PUBLIC_MCP_ENCRYPTION_KEY": pulumi_config.get("nextjsMcpEncryptionKey") or "",
+        "RESEND_API_KEY": pulumi_config.get("nextjsResendApiKey") or "",
+        "STRIPE_SECRET_KEY": pulumi_config.get("nextjsStripeSecretKey") or "",
+    }.items()
+    if v
+}
+
+aws.secretsmanager.SecretVersion(
+    f"{config.customer_id}-nextjs-secrets-version",
+    secret_id=nextjs_secret.id,
+    secret_string=json.dumps(_nextjs_secret_data) if _nextjs_secret_data else "{}",
+    opts=pulumi.ResourceOptions(provider=aws_provider),
+)
+
 cortex_ingestion_secret = aws.secretsmanager.Secret(
     f"{config.customer_id}-cortex-ingestion-secrets",
     name=f"/byoc/{config.customer_id}/cortex-ingestion",
@@ -784,6 +815,7 @@ pulumi.export("eks_oidc_provider_url", eks.oidc_provider_url)
 pulumi.export("eso_role_arn", eso_role.arn)
 pulumi.export("cortex_app_secret_arn", cortex_app_secret.arn)
 pulumi.export("cortex_ingestion_secret_arn", cortex_ingestion_secret.arn)
+pulumi.export("nextjs_secret_arn", nextjs_secret.arn)
 
 pulumi.export("documents_bucket_name", documents_bucket.bucket)
 pulumi.export("local_sources_bucket_name", local_sources_bucket.bucket)
