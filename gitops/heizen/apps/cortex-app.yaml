@@ -1,10 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: milvus
+  name: cortex-app
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "4"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -15,14 +15,14 @@ spec:
       ref: values
     - repoURL: https://github.com/opengig/cortex.git
       targetRevision: main
-      path: prod/milvus/helm/milvus-chart
+      path: prod/cortex-app/helm/cortex-app-chart
       helm:
-        releaseName: milvus
+        releaseName: cortex-app
         valueFiles:
-          - $values/gitops/heizenwork/values/milvus-values.yaml
+          - $values/gitops/heizen/values/cortex-app-values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: milvus-heizenwork
+    namespace: cortex-app
   syncPolicy:
     automated:
       prune: true
@@ -32,8 +32,9 @@ spec:
       - ServerSideApply=true
       - RespectIgnoreDifferences=true
   ignoreDifferences:
-    - group: milvus.io
-      kind: Milvus
+    - group: networking.k8s.io
+      kind: Ingress
       jqPathExpressions:
-        - .spec.components
-        - .spec.dependencies
+        - .metadata.annotations
+        - .spec.rules
+        - .spec.tls

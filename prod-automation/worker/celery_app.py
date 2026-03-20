@@ -200,7 +200,20 @@ def destroy_task(self, customer_id: str, environment: str) -> dict:
         except Exception:
             logger.exception("Pre-destroy cleanup error for %s. Proceeding anyway.", stack_name)
 
-        result = engine.destroy(stack_name)
+        max_attempts = 3
+        result = None
+        for attempt in range(1, max_attempts + 1):
+            result = engine.destroy(stack_name)
+            if result.summary.result == "succeeded":
+                break
+            if attempt < max_attempts:
+                logger.warning(
+                    "Destroy attempt %d/%d failed for %s. Waiting 5min for AWS cleanup...",
+                    attempt,
+                    max_attempts,
+                    stack_name,
+                )
+                time.sleep(300)
 
         if result.summary.result == "succeeded":
             db.update_deployment_status(

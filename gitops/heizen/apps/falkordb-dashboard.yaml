@@ -1,10 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: milvus
+  name: falkordb-dashboard
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "3"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -15,14 +15,14 @@ spec:
       ref: values
     - repoURL: https://github.com/opengig/cortex.git
       targetRevision: main
-      path: prod/milvus/helm/milvus-chart
+      path: prod/falkordb-dashboard/helm/falkordb-dashboard-chart
       helm:
-        releaseName: milvus
+        releaseName: falkordb-dashboard
         valueFiles:
-          - $values/gitops/heizenwork/values/milvus-values.yaml
+          - $values/gitops/heizen/values/falkordb-dashboard-values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: milvus-heizenwork
+    namespace: falkordb-dashboard
   syncPolicy:
     automated:
       prune: true
@@ -32,8 +32,9 @@ spec:
       - ServerSideApply=true
       - RespectIgnoreDifferences=true
   ignoreDifferences:
-    - group: milvus.io
-      kind: Milvus
+    - group: networking.k8s.io
+      kind: Ingress
       jqPathExpressions:
-        - .spec.components
-        - .spec.dependencies
+        - .metadata.annotations
+        - .spec.rules
+        - .spec.tls

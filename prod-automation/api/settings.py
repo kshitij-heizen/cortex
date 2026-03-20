@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     # GitHub (for GitOps writer)
     github_pat: str = ""
     github_repo: str = "opengig/cortex"
+    github_branch: str = "main"
 
     # Auth / JWT
     jwt_secret: str = "change-me-in-production"

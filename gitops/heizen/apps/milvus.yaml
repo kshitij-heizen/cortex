@@ -19,10 +19,10 @@ spec:
       helm:
         releaseName: milvus
         valueFiles:
-          - $values/gitops/heizenwork/values/milvus-values.yaml
+          - $values/gitops/heizen/values/milvus-values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: milvus-heizenwork
+    namespace: milvus-heizen
   syncPolicy:
     automated:
       prune: true

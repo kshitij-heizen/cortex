@@ -4,7 +4,7 @@ config:
   NEXT_PUBLIC_CORTEX_API_URL: "https://cortex-app.usecortex.opengig.work"
   NEXT_PUBLIC_CORTEX_INGESTION_URL: "https://cortex-ingestion.usecortex.opengig.work"
   NEXT_PUBLIC_FALKORDB_DASHBOARD_URL: "https://dashboard.falkordb.usecortex.opengig.work"
-  NEXT_PUBLIC_MILVUS_ATTU_URL: "https://heizenwork-attu.milvusdb.usecortex.opengig.work"
+  NEXT_PUBLIC_MILVUS_ATTU_URL: "https://heizen-attu.milvusdb.usecortex.opengig.work"
   NEXT_PUBLIC_GRAFANA_URL: "https://grafana-prod.usecortex.opengig.work"
   NEXT_PUBLIC_PROMETHEUS_URL: "https://prometheus-prod.usecortex.opengig.work"
   NEXTAUTH_URL: "http://localhost:3000"
@@ -17,4 +17,4 @@ ingress:
 externalSecret:
   enabled: true
   storeName: aws-secrets-manager
-  secretPath: /byoc/heizenwork/nextjs
+  secretPath: /byoc/heizen/nextjs

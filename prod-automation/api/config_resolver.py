@@ -449,7 +449,7 @@ def resolve_argocd_addon(
                 url=f"https://github.com/{settings.github_repo}.git",
                 username="git",
                 password=settings.github_pat,
-                branch="main",
+                branch=settings.github_branch,
             )
 
         return ArgoCDAddonResolved(
@@ -475,7 +475,7 @@ def resolve_argocd_addon(
             url=f"https://github.com/{settings.github_repo}.git",
             username="git",
             password=settings.github_pat,
-            branch="main",
+            branch=settings.github_branch,
         ),
         root_app_path="gitops/apps/",
         chart_version="7.7.11",

@@ -11,10 +11,10 @@ spec:
   project: default
   sources:
     - repoURL: https://github.com/opengig/cortex.git
-      targetRevision: kshitij/migrrationtocli
+      targetRevision: main
       ref: values
     - repoURL: https://github.com/opengig/cortex.git
-      targetRevision: kshitij/migrrationtocli
+      targetRevision: main
       path: prod/cortex-app/helm/cortex-app-chart
       helm:
         releaseName: cortex-app
