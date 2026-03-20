@@ -575,7 +575,7 @@ def resolve_customer_config(input_config: CustomerConfigInput) -> CustomerConfig
 
     # Auto-fill ArgoCD hostname from domain if empty
     if addons.argocd.enabled and not addons.argocd.hostname:
-        addons.argocd.hostname = f"argocd.{input_config.domain}"
+        addons.argocd.hostname = f"argocd.hydradb.{input_config.domain}"
 
     kafka_config = resolve_kafka_config(input_config.kafka_config)
     mongodb_config = resolve_mongodb_config(input_config.mongodb_config)
